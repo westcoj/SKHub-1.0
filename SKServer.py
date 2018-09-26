@@ -145,6 +145,37 @@ class SKServer(object):
             filepath = nameData.decode()
             print(filepath)
             self.skFileDist(filepath, socket)
+        if(command == 'admin'):
+            self.skAdminComm(socket);
+            
+    def skAdminComm(self, socket):
+        '''
+        Method through which client changes certain server options.
+        
+        'dir': Client wants to change directory
+        '''
+        self.skSend('password'.encode(), socket)
+        passData = self.skRCV(socket)
+        passInput = passData.decode()
+        if(passInput != self.__pass):
+            self.skSend('no'.encode(),socket)
+            return
+        else:
+            self.skSend('yes'.encode(), socket)
+            passData = self.skRCV(socket)
+            passInput = passData.decode()
+            if(passInput == 'dir'):
+                self.skSend('okay'.encode(), socket)
+                passData = self.skRCV(socket)
+                passInput = passData.decode()
+                if(os.path.exists(passInput)):
+                    self.__dir = self.skSetDir(passInput)
+                    self.__path = passInput
+                    self.skSend('okay'.encode(), socket)
+                else:
+                    self.skSend('no'.encode(), socket)
+
+
         
     def skSetDir(self,path):
         '''
@@ -154,12 +185,23 @@ class SKServer(object):
         path: The location of the directory to be used.
         '''
         os.chdir(path)
-        fileArr = os.listdir(path)
-        retArr = "";
-        for x in fileArr:
-            retArr = retArr + x
-            retArr += "\n"
-        return retArr
+        #fileArr = os.listdir(path)
+        retArr2 = ""
+        for root, dirs, files in os.walk('.'):
+            for name in files:
+                if(root == '.'):
+                    retArr2 = retArr2 + root[2:] + name
+                    retArr2 += '\n'
+                else:
+                    retArr2 = retArr2 + root[2:]  + '\\'  + name
+                    retArr2 += '\n'
+                
+        return retArr2
+#         retArr = "";
+#         for x in fileArr:
+#             retArr = retArr + x
+#             retArr += "\n"
+#         return retArr
     
         
     def skFileDist(self, filepath, socket):
@@ -171,6 +213,7 @@ class SKServer(object):
         socket: connection to send file on. 
         '''
         try:
+            print(self.__path + filepath)
             fileSize = os.path.getsize(self.__path + filepath) #stat("C:\\SoundFiles\\Server\\lz.mp3")
             print(fileSize)
             file = open(self.__path + filepath,'rb')
@@ -185,12 +228,14 @@ class SKServer(object):
 if __name__ == "__main__":
 
     port = raw_input("Enter port:  ")
-    path = raw_input("Enter file directory path:  ")
-    pswd = raw_input("Enter password (unused function):  ")
-    conn = int(raw_input("Enter number of connections:  "))
+    if(port!='default'):
+        port = int(port)
+        path = raw_input("Enter file directory path:  ")
+        pswd = raw_input("Enter password (unused function):  ")
+        conn = int(raw_input("Enter number of connections:  "))
 
     if(port == 'default'):
-        ServerK = SKServer(1445, 'C:\\SoundFiles\\Server\\', 5, 'FileServer');
+        ServerK = SKServer(1445, 'C:\\SoundFiles\\Server2\\', 5, 'FileServer');
     else:
         ServerK = SKServer(port, path,conn,pswd)
     ServerK.skListen()
