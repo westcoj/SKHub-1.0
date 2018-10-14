@@ -33,6 +33,9 @@ class SKServer(object):
         path: default directory
         connections: Max number of connections serviceable at one time.
         password: Auth token to be present in all received communication. Without it, the request is ignored.
+        skFiles: List of all songs in SKFile format.
+        dir: list of all songs in string format (For sending to client, probably not needed since skfiles have
+         this capability)
         '''
         self.__SS = socket(AF_INET,SOCK_STREAM,0);
         self.__hostname = gethostbyname(gethostname())
@@ -45,7 +48,11 @@ class SKServer(object):
     def skSetup(self):
         '''
         Method for reading the ini file provided to the server
+        
+        UPDATE: PATH CHECKING
         '''
+        
+        #Ensure path is correct
         dirName = os.path.dirname(os.path.realpath(__file__))
         if(os.path.isfile('settings.ini')):
             #Process ini file
@@ -131,7 +138,7 @@ class SKServer(object):
     def skRCV(self,socket):
         '''
         skRCV will handle taking packets from the server and appropriately pass the data. only
-        used if data size is a prefix.
+        used if data size is a prefix. Works in tandem with skRCVALL
         
         socket: connection to receive on
         '''
@@ -165,6 +172,7 @@ class SKServer(object):
         'exit': User is shutting down server.
         'reset': User is resetting the server.
         'dir': User is changing/deleting/adding directory.
+        UNIMPLEMENTED
         '''
         
         
@@ -284,9 +292,9 @@ class SKServer(object):
     def skFileDist(self, filepath, socket):
         '''
         Method that enables the server to take a file from its directory and send the 
-        data to the client succesfully
+        data to the client
         
-        filepath: name/location of the file to be sent.
+        file path: name/location of the file to be sent.
         socket: connection to send file on. 
         '''
         try:

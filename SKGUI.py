@@ -114,6 +114,9 @@ class SKGUI(wx.Panel):
                 return SKClient(self.__path, self.__port, self.__host)
 
     def skPopUpValue(self, text, defValue):
+        '''
+        Method that generates a pop up dialog box for errors
+        '''
         popup = wx.TextEntryDialog(None, text, value = defValue)
         popup.ShowModal()
         value = popup.GetValue()
@@ -158,7 +161,7 @@ class SKGUI(wx.Panel):
         self.mediaDisplay.InsertColumn(1 ,'Artist',width = 150)
         self.mediaDisplay.InsertColumn(2 ,'Album',width = 150)
 
-        self.mediaList = self.mediaManager.skGetList()
+#         self.mediaList = self.mediaManager.skMediaGetList()
         
         i=0
         for x in self.skc.skGetDir():
@@ -273,7 +276,7 @@ class SKGUI(wx.Panel):
                 i+=1
         check = self.mediaManager.skdbUpdateDefault(self.mediaList)
         
-    def skListOption(self,event):
+    def skListOption(self, event):
         '''
         Method for opening list management GUI
         '''
@@ -282,7 +285,7 @@ class SKGUI(wx.Panel):
         
     def skLoadList(self, event, name):
         '''
-        Method that loads a playlist from manager
+        Method that loads a play list from manager
         '''
 #         self.mediaList = []
 #         self.mediaDisplay.Clear()
