@@ -11,8 +11,10 @@ import sqlite3
 
 class SKMedia(object):
     '''
-    This class will support the operation of audio media for SKClient. It will handle 
-    the distribution of files and play list management.
+    This class is used to handle play list operations for the client. Using database tables, it
+    keeps track of the default list and every list. 
+    
+    This needs more cleaning up, since text file tracking is no longer in use.
     '''
 
 
@@ -31,12 +33,16 @@ class SKMedia(object):
         #os.chdir(plPath)
         #self.skLoadList('default.pl')
         
-    def skGetList(self):
+    def skMediaGetList(self):
+        '''
+        NOT CURRENTLY IN USE
+        '''
         return self.__list
     
     def skLoadList(self, name):
         '''
-        Method to load playlist, not implemented, current list is just a default
+        Method to load play list, not implemented, current list is just a default
+        NOT CURRENTLY IN USE
         '''
 #         with open(name) as f:
 #             self.__list = f.readlines()
@@ -48,17 +54,19 @@ class SKMedia(object):
                 skF = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
                 self.__list.append(skF)
          
-    def skShuffleList(self,list):
+    def skShuffleList(self,listcon):
         '''
-        Method for shuffling a list
+        Method for shuffling a list, shuffles the list in place so a copy
+        must be used. This is still used currently.
         '''
-        listCopy = list
+        listCopy = listcon
         random.shuffle(listCopy)
         return listCopy
         
     def skSetList(self,content):
         '''
         Method for rewriting entire list (default only, update call)
+        NOT CURRENTLY IN USE
         '''
         with open('default.pl', 'w',encoding = 'utf-8') as f:
             for x in content:
@@ -75,8 +83,9 @@ class SKMedia(object):
     def skdbGetList(self, name):
         '''
         Method for obtaining a table from the database and returning its contents
+        
+        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
-        newList = []
         retList = []
 #         try:
         con = sqlite3.connect(self.__dbPath)
@@ -87,6 +96,8 @@ class SKMedia(object):
         for x in newList:
             skF = SKFile(x[0],x[1],x[2],x[3],x[4])
             retList.append(skF)
+            
+        #retList 
         return retList
 #         except:
         return 0 #DB CONNECTION ERROR
@@ -134,7 +145,7 @@ class SKMedia(object):
                 
     def skdbNewList(self, name):
         '''
-        Creates a new table in the db for a new playlist.
+        Creates a new table in the database for a new play list.
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -158,7 +169,9 @@ class SKMedia(object):
         
     def skdbRemoveList(self, name):
         '''
-        Removes a table from the db
+        Removes a table from the database
+        
+        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -177,8 +190,10 @@ class SKMedia(object):
     def skdbUpdateList(self, op, name, skF):
         '''
         Method to add or remove a song from a table.
-        op = add (1) or delete(anything else)
-        name = playlist name. Since they are chosen via selection, shouldn't run into not finding that list
+        op = add (1) or delete (anything else)
+        name = play list name. Since they are chosen via selection, shouldn't run into not finding that list
+        
+        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -196,7 +211,7 @@ class SKMedia(object):
                 return 0
         else:
             try:
-                rmFrom = "DELETE FROM " + name + " WHERE songDex (index) VALUES (?)"
+#                 rmFrom = "DELETE FROM " + name + " WHERE songDex (index) VALUES (?)"
                 index = str(skF.index)
                 cur.execute("DELETE FROM " + name + " WHERE songDex=?",(index,))
                 con.commit()
@@ -206,7 +221,8 @@ class SKMedia(object):
             
     def skdbUpdateListMany(self, op, name, items):
         '''
-        Method to update a table with a list of entries. Either adding or removing.
+        Method to update a table with a list of entries. Either adding or removing. 
+        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -242,7 +258,7 @@ class SKMedia(object):
         '''
         Method that updates the default directory table from the sever.
         Holds an old table in case of issues, or programming in option to
-        try and find new paths for playlists.
+        try and find new paths for play lists.
         '''
         
         #Check if table already exists, if so creade old default for backup

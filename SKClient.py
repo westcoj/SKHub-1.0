@@ -40,6 +40,7 @@ class SKClient(object):
     def skSetup(self):
         '''
         Method for loading skcsl18 file for directory storage
+        Old method for default directory, will be phased out. Replaced with database option instead.
         '''
         dirName = os.path.dirname(os.path.realpath(__file__))
         statPath = os.path.join(dirName, 'stat')
@@ -62,8 +63,10 @@ class SKClient(object):
             
     def skWriteSKC(self):
         '''
-        Method that writes the updated directory list to the setup file
+        Method that writes the updated directory list to the setup file.
+        Will be phased out for database version.
         '''
+        
         dirName = os.path.dirname(os.path.realpath(__file__))
         statPath = os.path.join(dirName, 'stat')
         with open(statPath + '\\skcfl18.sk','w',encoding='utf-8') as f:
