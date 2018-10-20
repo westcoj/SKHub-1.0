@@ -4,13 +4,15 @@ Created on Sep 7, 2018
 @author: C
 '''
 
-from _socket import SOCK_STREAM, AF_INET
-from socket import socket
-#from _thread import *
+from _socket import SOCK_STREAM, AF_INET, gethostname
+from socket import socket, getfqdn, gethostbyname, gethostname
 import threading
 import os
 import struct
 from pip._vendor.distlib.compat import raw_input
+from tinytag import TinyTag
+from SKFile import SKFile
+import configparser
 
 
 
@@ -22,7 +24,7 @@ class SKServer(object):
     '''
 
 
-    def __init__(self, port, path, connections, password):
+    def __init__(self):
         '''
         Constructor sets up server socket address/port, the default directory, and the
         number of connections the server will handle at once.
@@ -31,17 +33,63 @@ class SKServer(object):
         path: default directory
         connections: Max number of connections serviceable at one time.
         password: Auth token to be present in all received communication. Without it, the request is ignored.
+        skFiles: List of all songs in SKFile format.
+        dir: list of all songs in string format (For sending to client, probably not needed since skfiles have
+         this capability)
+        '''
+        self.__SS = socket(AF_INET,SOCK_STREAM,0);
+        self.__hostname = gethostbyname(gethostname())
+        self.skSetup()
+        self.__SS.bind((self.__hostname,self.__port));
+        #os.chdir(path)
+        self.__skFiles = []
+        self.__dir = self.skSetDir(self.__path);
+        
+    def skSetup(self):
+        '''
+        Method for reading the ini file provided to the server
+        
+        UPDATE: PATH CHECKING
         '''
         
-        self.__SS = socket(AF_INET,SOCK_STREAM,0);
-        self.__hostname = '127.0.0.1' #self.__SS.gethostname();
-        self.__port = port;
-        self.__SS.bind((self.__hostname,self.__port));
-        self.__path = path;
-        #os.chdir(path)
-        self.__dir = self.skSetDir(path);
-        self.__conns = connections;
-        self.__pass = password;
+        #Ensure path is correct
+        dirName = os.path.dirname(os.path.realpath(__file__))
+        if(os.path.isfile('settings.ini')):
+            #Process ini file
+            try:
+                config = configparser.ConfigParser()
+                config.read('settings.ini')
+                self.__port = int(config['DEFAULT']['ServerPort'])
+                self.__conns = int(config['DEFAULT']['ConnectionLimit'])
+                self.__pass = config['DEFAULT']['ConnectionPassword']
+                self.__admPass = config['DEFAULT']['AdminPassword']
+                self.__path = config['DEFAULT']['ServerDirectory']
+            except:
+                print('Issue reading ini file')
+                os.rename('settings.ini', 'settings.ini.bak', src_dir_fd=None, dst_dir_fd=None)
+                self.skSetup
+        else:
+            try:
+                config = configparser.ConfigParser()
+                self.__port = int(raw_input("Enter server port:  "))
+                self.__conns = int(raw_input("Enter max number of connections:  "))
+                self.__pass = raw_input("Enter connection password:  ")
+                self.__admPass = raw_input("Enter admin control password:  ")
+                self.__path = raw_input("Enter file directory path:  ")
+                if(not self.__path.endswith('\\')):
+                        self.__path.append('\\')
+                config['DEFAULT'] = {}
+                config['DEFAULT']['ServerPort'] = str(self.__port)
+                config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
+                config['DEFAULT']['ConnectionPassword'] = self.__pass
+                config['DEFAULT']['AdminPassword'] = self.__admPass
+                config['DEFAULT']['ServerDirectory'] = self.__path
+                with open('settings.ini', 'w') as iniFile:
+                    config.write(iniFile)
+            except:
+                print('Error making ini file')
+            #Make new ini
+
         
     def skListen(self):
         '''
@@ -50,6 +98,7 @@ class SKServer(object):
         '''
         
         self.__SS.listen(self.__conns)
+        print('Server listening on port: ' + str(self.__port))
         while(True):
             CS,CS_Addr = self.__SS.accept();
             CS.settimeout(200)
@@ -64,7 +113,7 @@ class SKServer(object):
         cs: socket connection to specific client
         csAddr: address of the client that has connected.
         '''
-        print("Connection established...")
+        print("Connection established with " + str(csAddr))
         commData = self.skRCV(cs)
         while not commData:
             commData = self.skRCV(cs)
@@ -89,7 +138,7 @@ class SKServer(object):
     def skRCV(self,socket):
         '''
         skRCV will handle taking packets from the server and appropriately pass the data. only
-        used if data size is a prefix.
+        used if data size is a prefix. Works in tandem with skRCVALL
         
         socket: connection to receive on
         '''
@@ -123,6 +172,7 @@ class SKServer(object):
         'exit': User is shutting down server.
         'reset': User is resetting the server.
         'dir': User is changing/deleting/adding directory.
+        UNIMPLEMENTED
         '''
         
         
@@ -144,36 +194,37 @@ class SKServer(object):
             nameData = self.skRCV(socket)
             filepath = nameData.decode()
             print(filepath)
+            filepath = self.__skFiles[int(filepath)].path
             self.skFileDist(filepath, socket)
-        if(command == 'admin'):
-            self.skAdminComm(socket);
+#         if(command == 'admin'):
+#             self.skAdminComm(socket);
             
-    def skAdminComm(self, socket):
-        '''
-        Method through which client changes certain server options.
-        
-        'dir': Client wants to change directory
-        '''
-        self.skSend('password'.encode(), socket)
-        passData = self.skRCV(socket)
-        passInput = passData.decode()
-        if(passInput != self.__pass):
-            self.skSend('no'.encode(),socket)
-            return
-        else:
-            self.skSend('yes'.encode(), socket)
-            passData = self.skRCV(socket)
-            passInput = passData.decode()
-            if(passInput == 'dir'):
-                self.skSend('okay'.encode(), socket)
-                passData = self.skRCV(socket)
-                passInput = passData.decode()
-                if(os.path.exists(passInput)):
-                    self.__dir = self.skSetDir(passInput)
-                    self.__path = passInput
-                    self.skSend('okay'.encode(), socket)
-                else:
-                    self.skSend('no'.encode(), socket)
+#     def skAdminComm(self, socket):
+#         '''
+#         Method through which client changes certain server options.
+#         
+#         'dir': Client wants to change directory
+#         '''
+#         self.skSend('password'.encode(), socket)
+#         passData = self.skRCV(socket)
+#         passInput = passData.decode()
+#         if(passInput != self.__pass):
+#             self.skSend('no'.encode(),socket)
+#             return
+#         else:
+#             self.skSend('yes'.encode(), socket)
+#             passData = self.skRCV(socket)
+#             passInput = passData.decode()
+#             if(passInput == 'dir'):
+#                 self.skSend('okay'.encode(), socket)
+#                 passData = self.skRCV(socket)
+#                 passInput = passData.decode()
+#                 if(os.path.exists(passInput)):
+#                     self.__dir = self.skSetDir(passInput)
+#                     self.__path = passInput
+#                     self.skSend('okay'.encode(), socket)
+#                 else:
+#                     self.skSend('no'.encode(), socket)
 
 
         
@@ -187,33 +238,67 @@ class SKServer(object):
         os.chdir(path)
         #fileArr = os.listdir(path)
         retArr2 = ""
+        self.__skFiles = []
+        self.__errList = []
+
+        i = 0
         for root, dirs, files in os.walk('.'):
             for name in files:
                 if(root == '.'):
-                    retArr2 = retArr2 + root[2:] + name
-                    retArr2 += '\n'
+                    #Tiny Tag supports other formats, but for now mp3 will suffice
+                    if(name.endswith('.mp3')):
+                        try:
+#                             sys.stdout.buffer.write((name+'\n').encode())
+                            tag = TinyTag.get(name)
+                            skF = SKFile(name,i,tag.title,tag.artist,tag.album)
+                            i+=1
+                            self.__skFiles.append(skF)
+                        #Special duration error on TinyTag Most likely Throws 2 errors
+                        except Exception as e:
+                            try:
+                                tag = TinyTag.get(name, duration=False)
+                                skF = SKFile(name,i,tag.title,tag.artist,tag.album)
+                                i+=1
+                                self.__skFiles.append(skF)
+                            #Second TinyTag failure, give up on that file
+                            except:
+                                self.__errList.append(name)
+                                pass
                 else:
-                    retArr2 = retArr2 + root[2:]  + '\\'  + name
-                    retArr2 += '\n'
-                
+                    if(name.endswith('.mp3')):
+                        newRoot = root[2:] + '\\' + name
+                        try:
+                            tag = TinyTag.get(newRoot)
+                            skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
+                            i+=1
+                            self.__skFiles.append(skF)
+                        except:
+                            try:
+                                tag = TinyTag.get(newRoot, duration=False)
+                                skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
+                                i+=1
+                                self.__skFiles.append(skF)
+                            except:
+                                self.__errList.append(name)
+                                pass
+        for x in self.__skFiles:
+            retArr2 = retArr2 + x.skToString() + '\n'
+#         for x in self.__errList:
+#             sys.stdout.buffer.write((x+'\n').encode())
+
         return retArr2
-#         retArr = "";
-#         for x in fileArr:
-#             retArr = retArr + x
-#             retArr += "\n"
-#         return retArr
     
         
     def skFileDist(self, filepath, socket):
         '''
         Method that enables the server to take a file from its directory and send the 
-        data to the client succesfully
+        data to the client
         
-        filepath: name/location of the file to be sent.
+        file path: name/location of the file to be sent.
         socket: connection to send file on. 
         '''
         try:
-            print(self.__path + filepath)
+            #print(self.__path + filepath)
             fileSize = os.path.getsize(self.__path + filepath) #stat("C:\\SoundFiles\\Server\\lz.mp3")
             print(fileSize)
             file = open(self.__path + filepath,'rb')
@@ -221,22 +306,11 @@ class SKServer(object):
             file.close()
             print('Sending file')
             self.skSend(fileData, socket)
-        except:
-            print("error")
+        except Exception as e:
+            print(e)
             
             
 if __name__ == "__main__":
-
-    port = raw_input("Enter port:  ")
-    if(port!='default'):
-        port = int(port)
-        path = raw_input("Enter file directory path:  ")
-        pswd = raw_input("Enter password (unused function):  ")
-        conn = int(raw_input("Enter number of connections:  "))
-
-    if(port == 'default'):
-        ServerK = SKServer(1445, 'C:\\SoundFiles\\Server2\\', 5, 'FileServer');
-    else:
-        ServerK = SKServer(port, path,conn,pswd)
+    ServerK = SKServer();
     ServerK.skListen()
     

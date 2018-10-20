@@ -7,6 +7,7 @@ from _socket import SOCK_STREAM, AF_INET, socket
 import struct
 from pip._vendor.distlib.compat import raw_input
 import os
+from SKFile import SKFile
 
 class SKClient(object):
     '''
@@ -26,7 +27,6 @@ class SKClient(object):
         ip: IP address of the server to contact
         path: location where sound files are held
         '''
-        
         self.__CS = socket(AF_INET,SOCK_STREAM)
         self.__hostname = ip
         self.__port = port
@@ -34,12 +34,50 @@ class SKClient(object):
         self.__dirPath = path
         self.__playIndex = []
         self.__sockStat = False
+        self.__skFiles = []
+        self.skSetup()
         
+    def skSetup(self):
+        '''
+        Method for loading skcsl18 file for directory storage
+        Old method for default directory, will be phased out. Replaced with database option instead.
+        '''
+        dirName = os.path.dirname(os.path.realpath(__file__))
+        statPath = os.path.join(dirName, 'stat')
+        if not os.path.isdir(statPath):
+            os.makedirs(statPath)
+        if os.path.isfile(statPath + '\\skcfl18.sk'):
+            try:
+                self.__dir = [line.rstrip('\n') for line in open(statPath + '\\skcfl18.sk', encoding = 'utf-8')]
+                self.__dir.pop()
+                i=0
+                self.__skFiles = []
+                for x in self.__dir:
+                    skFData = x.split('&%&')
+                    skf = SKFile(skFData[0],i,skFData[2],skFData[3],skFData[4])
+                    self.__skFiles.append(skf)
+                    i+=1
+            except Exception as e:
+                print(e)
+                return 0
+            
+    def skWriteSKC(self):
+        '''
+        Method that writes the updated directory list to the setup file.
+        Will be phased out for database version.
+        '''
+        
+        dirName = os.path.dirname(os.path.realpath(__file__))
+        statPath = os.path.join(dirName, 'stat')
+        with open(statPath + '\\skcfl18.sk','w',encoding='utf-8') as f:
+            for x in self.__dir:
+                f.write("%s\n" % x)
+                            
     def setDir(self, path):
         self.__dirPath = path
         
     def skGetDir(self):
-        return self.__dir
+        return self.__skFiles
     
     def skGetPath(self):
         return self.__dirPath
@@ -116,6 +154,7 @@ class SKClient(object):
     def skRCVFile(self, name):
         '''
         Method for handling file transfer from server on request from server. This method handles name entries.
+        Phased out for the more reliable index request (Files no longer requested by name)
         '''
         self.skSend(name.encode())
         fileData = self.skRCV()
@@ -129,22 +168,27 @@ class SKClient(object):
             return 0
     
     def skGUIFILE(self, index):
-        self.skOpen()
-        self.skSend('file'.encode())
-        answerData = self.skRCV();
-        if answerData:
-            answer = answerData.decode()
-            if(answer == 'okay'):
-                return self.skRCVFileIndex(index)
+        '''
+        Method for GUI to prep server for index request
+        '''
+        connected = self.skOpen()
+        if(connected == 0):
+            self.skSend('file'.encode())
+            answerData = self.skRCV();
+            if answerData:
+                answer = answerData.decode()
+                if(answer == 'okay'):
+                    return self.skRCVFileIndex2(index)
+                else:
+                    return 0
             else:
                 return 0
-        else:
-            return 0
-        self.skClose()
+            self.skClose()
             
     def skRCVFileIndex(self,index):
         '''
         Method for handling file transfer from server on request from server. This method handles index entries.
+        Phased out for the secondary method.
         
         index: Number of file to download
         '''
@@ -170,11 +214,43 @@ class SKClient(object):
         
         if self.__sockStat:
             self.skClose()
+            
+    def skRCVFileIndex2(self,index):
+        '''
+        Method for handling file transfer from server on request from server. This method handles index entries.
+        
+        index: Number of file to download
+        '''
+        
+        if not self.__sockStat:
+            self.skOpen()
+        self.skSend(str(index).encode())
+        fileData = self.skRCV()
+        try:
+            name = self.__skFiles[index].path
+        except:
+            return 0
+        if fileData:
+            if not os.path.exists(os.path.dirname(self.__dirPath + name)):
+                try:
+                    os.makedirs(os.path.dirname(self.__dirPath + name))
+                except Exception as e:
+                    print(e)
+                    return 0
+            file = open(self.__dirPath + name, 'wb+')        
+            file.write(fileData);
+            file.close();
+            return 1
+        else:
+            return 0
+        
+        if self.__sockStat:
+            self.skClose()
     
     def comLine(self):
-        '''s
+        '''
         Method that runs the client as a command line application. Takes in user input and
-        passes it on.
+        passes it on. Won't be present in final product
         '''
         
         command = raw_input('Enter Command: ')
@@ -199,11 +275,17 @@ class SKClient(object):
             data = self.skRCV().decode()
             self.__dir = data.split('\n')
             self.__dir.pop()
+            self.__skFiles = []
+            for x in self.__dir:
+                skFData = x.split('&%&')
+                skf = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
+                self.__skFiles.append(skf)
             self.skClose()
+            self.skWriteSKC()
         if(command == 'ls'):
             i=0
             for x in self.__dir:
-                print(str(i) + ': ' + x)
+                print((str(i) + ': ' + x).encode().decode())
                 i+=1
         if(command == 'file'):
             self.skOpen()
@@ -226,7 +308,7 @@ class SKClient(object):
             if answerData:
                 answer = answerData.decode()
                 if(answer == 'okay'):
-                    self.skRCVFileIndex(int(name))
+                    self.skRCVFileIndex2(int(name))
                 else:
                     print("No beuno")
             else:
