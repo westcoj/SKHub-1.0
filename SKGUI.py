@@ -163,6 +163,7 @@ class SKGUI(wx.Panel):
 
 #         self.mediaList = self.mediaManager.skMediaGetList()
         
+        self.mediaList = []
         i=0
         for x in self.skc.skGetDir():
             self.mediaList.append(x)

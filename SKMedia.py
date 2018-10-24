@@ -8,6 +8,7 @@ import os
 import random
 from SKFile import SKFile
 import sqlite3
+import re
 
 class SKMedia(object):
     '''
@@ -22,6 +23,7 @@ class SKMedia(object):
         '''
         Constructor to set up media handler
         '''
+        self.__regex = '[^0-9a-zA-Z ]+'
         self.__list = [] 
         self.__cacheList = []
         self.__listIndex = 0
@@ -33,26 +35,26 @@ class SKMedia(object):
         #os.chdir(plPath)
         #self.skLoadList('default.pl')
         
-    def skMediaGetList(self):
-        '''
-        NOT CURRENTLY IN USE
-        '''
-        return self.__list
-    
-    def skLoadList(self, name):
-        '''
-        Method to load play list, not implemented, current list is just a default
-        NOT CURRENTLY IN USE
-        '''
-#         with open(name) as f:
-#             self.__list = f.readlines()
-        if os.path.isfile(self.__plPath + name):
-            self.__list = []
-            skfList = [line.rstrip('\n') for line in open(name,encoding='utf-8')]
-            for x in skfList:
-                skFData = x.split('&%&')
-                skF = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
-                self.__list.append(skF)
+#     def skMediaGetList(self):
+#         '''
+#         NOT CURRENTLY IN USE
+#         '''
+#         return self.__list
+#     
+#     def skLoadList(self, name):
+#         '''
+#         Method to load play list, not implemented, current list is just a default
+#         NOT CURRENTLY IN USE
+#         '''
+# #         with open(name) as f:
+# #             self.__list = f.readlines()
+#         if os.path.isfile(self.__plPath + name):
+#             self.__list = []
+#             skfList = [line.rstrip('\n') for line in open(name,encoding='utf-8')]
+#             for x in skfList:
+#                 skFData = x.split('&%&')
+#                 skF = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
+#                 self.__list.append(skF)
          
     def skShuffleList(self,listcon):
         '''
@@ -63,22 +65,29 @@ class SKMedia(object):
         random.shuffle(listCopy)
         return listCopy
         
-    def skSetList(self,content):
-        '''
-        Method for rewriting entire list (default only, update call)
-        NOT CURRENTLY IN USE
-        '''
-        with open('default.pl', 'w',encoding = 'utf-8') as f:
-            for x in content:
-                f.write("%s\n" % x)
+#     def skSetList(self,content):
+#         '''
+#         Method for rewriting entire list (default only, update call)
+#         NOT CURRENTLY IN USE
+#         '''
+#         with open('default.pl', 'w',encoding = 'utf-8') as f:
+#             for x in content:
+#                 f.write("%s\n" % x)
+#                 
+#         self.__list = content
                 
-        self.__list = content
-                
-    def skTestList(self):
-        for x in self.__list:
-            print(x)
+#     def skTestList(self):
+#         for x in self.__list:
+#             print(x)
             
     #----------------------------------------DB METHODS-------------------------#
+    
+    def skScrubName(self, name):
+        '''
+        This method is meant to scrub play list name inputs to prevent SQLI and allow for spaces.
+        '''
+        return re.sub(self.__regex,'',name)
+        
     
     def skdbGetList(self, name):
         '''
@@ -90,7 +99,7 @@ class SKMedia(object):
 #         try:
         con = sqlite3.connect(self.__dbPath)
         cur = con.cursor()
-        getCom = ("SELECT path, songDex, title, artist, album FROM %s" % (name))
+        getCom = ("SELECT path, songDex, title, artist, album FROM [%s]" % (self.skScrubName(name)))
         cur.execute(getCom)
         newList = cur.fetchall()
         for x in newList:
@@ -116,13 +125,15 @@ class SKMedia(object):
                 retList.append(x[0])
             return retList
         except:
-            return [0] #DB CONNECTION ERROR
+            return 0 #DB CONNECTION ERROR
         
         
     def skdbSortList(self, option, name):
         '''
-        Method for sorting a playlist. Query the db for the proper table and sorting.
+        Method for sorting a play list. Query the db for the proper table and sorting.
         Returns its content.
+        
+        NEEDS TO BE IMPLEMENTED
         '''
         
         try:
@@ -132,7 +143,7 @@ class SKMedia(object):
             return 0 #DB CONNECTION ERROR
         try:
             retList = []
-            getCom = 'SELECT * FROM ' + name + ' ORDER BY ' + option
+            getCom = 'SELECT * FROM [' + self.skScrubName(name) + '] ORDER BY ' + option
             cur.execute(getCom)
             newList = cur.fetchall()
             for x in newList:
@@ -153,12 +164,12 @@ class SKMedia(object):
         except:
             return 0 #DB CONNECTION ERROR
         tableD = """
-        CREATE TABLE IF NOT EXISTS %s (
+        CREATE TABLE IF NOT EXISTS [%s] (
             path text UNIQUE NOT NULL,
             songDex integer PRIMARY KEY,
             title text,
             artist text,
-            album text)""" % (name)
+            album text)""" % (self.skScrubName(name))
         try:
             cur.execute(tableD)
             con.commit()
@@ -178,7 +189,7 @@ class SKMedia(object):
             cur = con.cursor()
         except:
             return 0 #DB CONNECTION ERROR
-        rmCom = "DROP TABLE IF EXISTS " + name
+        rmCom = ("DROP TABLE IF EXISTS [%s]" % (self.skScrubName(name)))
         try:
             cur.execute(rmCom)
             con.commit()
@@ -203,7 +214,7 @@ class SKMedia(object):
         #Adding to list
         if(op == 1):
             try:
-                addTo = "INSERT INTO " + name + " (path, songDex, title, artist, album) VALUES (?,?,?,?,?)"
+                addTo = "INSERT INTO [%s] (path, songDex, title, artist, album) VALUES (?,?,?,?,?)" % (self.skScrubName(name))
                 cur.execute(addTo, (skF.path, skF.index, skF.title, skF.artist, skF.album))
                 con.commit()
                 con.close()
@@ -213,7 +224,8 @@ class SKMedia(object):
             try:
 #                 rmFrom = "DELETE FROM " + name + " WHERE songDex (index) VALUES (?)"
                 index = str(skF.index)
-                cur.execute("DELETE FROM " + name + " WHERE songDex=?",(index,))
+                remTo = "DELETE FROM [%s] WHERE songDex=?;" % (self.skScrubName(name))
+                cur.execute(remTo, (index))
                 con.commit()
                 con.close()
             except:
@@ -235,7 +247,7 @@ class SKMedia(object):
             itemList = []
             for x in items:
                 itemList.append([x.path, x.index, x.title, x.artist, x.album ])
-            addTo = "INSERT OR IGNORE INTO " + name + " (path, songDex, title, artist, album) VALUES (?,?,?,?,?)"
+            addTo = "INSERT OR IGNORE INTO [%s] (path, songDex, title, artist, album) VALUES (?,?,?,?,?)" %(self.skScrubName(name))
             cur.executemany(addTo, (itemList))
             con.commit()
             con.close()
@@ -246,7 +258,7 @@ class SKMedia(object):
                 itemList = []
                 for x in items:
                     itemList.append([str(x.index)])
-                rem = "DELETE FROM " + name + " WHERE songDex=?;"
+                rem = "DELETE FROM [%s] WHERE songDex=?;" % (self.skScrubName(name))
                 cur.executemany(rem,(itemList))
                 con.commit()
                 con.close()
@@ -302,5 +314,6 @@ class SKMedia(object):
         return 1
     
 if __name__ == "__main__":
-    skm = SKMedia()
-    skm.skdbGetAll()
+    s = 'HELLO W@RLD 19 !!))' 
+    s = re.sub('[^0-9a-zA-Z ]+','',s)
+    print(s)

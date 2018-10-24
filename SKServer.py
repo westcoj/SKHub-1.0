@@ -5,7 +5,7 @@ Created on Sep 7, 2018
 '''
 
 from _socket import SOCK_STREAM, AF_INET, gethostname
-from socket import socket, getfqdn, gethostbyname, gethostname
+import socket
 import threading
 import os
 import struct
@@ -13,9 +13,14 @@ from pip._vendor.distlib.compat import raw_input
 from tinytag import TinyTag
 from SKFile import SKFile
 import configparser
+import signal
+import sys
+from _thread import interrupt_main
 
 
 
+class ExitSignal(Exception):
+    pass
 
 class SKServer(object):
     '''
@@ -37,13 +42,25 @@ class SKServer(object):
         dir: list of all songs in string format (For sending to client, probably not needed since skfiles have
          this capability)
         '''
-        self.__SS = socket(AF_INET,SOCK_STREAM,0);
-        self.__hostname = gethostbyname(gethostname())
+        self.__SS = socket.socket(socket.AF_INET,socket.SOCK_STREAM,0);
+        self.__hostname = socket.gethostbyname(gethostname())
         self.skSetup()
         self.__SS.bind((self.__hostname,self.__port));
         #os.chdir(path)
         self.__skFiles = []
         self.__dir = self.skSetDir(self.__path);
+        self.__filesServed = 0;
+        
+    def skClose(self, cs):
+        '''
+        Method that closes server from an informing thread. Makes use of a seccond connection attempt to
+        raise an error in the main listening loop to escape.
+        '''
+        self.skUpdateINI()
+        cs.close()
+        socket.socket(socket.AF_INET,socket.SOCK_STREAM).connect((self.__hostname,self.__port))
+        self.__SS.close()
+        print('Goodbye')
         
     def skSetup(self):
         '''
@@ -51,7 +68,6 @@ class SKServer(object):
         
         UPDATE: PATH CHECKING
         '''
-        
         #Ensure path is correct
         dirName = os.path.dirname(os.path.realpath(__file__))
         if(os.path.isfile('settings.ini')):
@@ -90,20 +106,35 @@ class SKServer(object):
                 print('Error making ini file')
             #Make new ini
 
-        
+    def skUpdateINI(self):
+        try:
+            config = configparser.ConfigParser()
+            config['DEFAULT'] = {}
+            config['DEFAULT']['ServerPort'] = str(self.__port)
+            config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
+            config['DEFAULT']['ConnectionPassword'] = self.__pass
+            config['DEFAULT']['AdminPassword'] = self.__admPass
+            config['DEFAULT']['ServerDirectory'] = self.__path
+            with open('settings.ini', 'w') as iniFile:
+                config.write(iniFile)
+        except:
+            print('Error making ini file')
+            
     def skListen(self):
         '''
         Main method of running the server, allowing connections from clients. Opens
         the server sockets and starts individual threads based on requests.
         '''
-        
-        self.__SS.listen(self.__conns)
-        print('Server listening on port: ' + str(self.__port))
-        while(True):
-            CS,CS_Addr = self.__SS.accept();
-            CS.settimeout(200)
-            threading.Thread(target = self.skClientDist, args = (CS, CS_Addr)).start()
-        
+        try:
+            self.__SS.listen(self.__conns)
+            print('Server listening on port: ' + str(self.__port))
+            while(True):
+                CS,CS_Addr = self.__SS.accept();
+                CS.settimeout(200)
+                threading.Thread(target = self.skClientDist, args = (CS, CS_Addr)).start()
+        except socket.error:
+            print('Closing Server')
+            return 0
         
     def skClientDist(self,cs,csAddr):
         '''
@@ -163,7 +194,7 @@ class SKServer(object):
             data += packet
             return data
     
-    def skUserComm(self, command):
+    def skAdminComm(self, socket):
         '''
         Method that takes in user input and passes it to the proper command
         
@@ -174,7 +205,22 @@ class SKServer(object):
         'dir': User is changing/deleting/adding directory.
         UNIMPLEMENTED
         '''
-        
+        self.skSend('authtoken'.encode(), socket)
+        auth = self.skRCV(socket)
+        if(auth.decode()!=self.__admPass):
+            print('Unauthorized Token Attempt')
+            self.skSend('no'.encode(), socket)
+            return 1
+        self.skSend('yes'.encode(), socket)
+        commData = self.skRCV(socket)
+        command = commData.decode().split('&%&')
+        if(command[0]=='port'):
+            'Change port, requires reset'
+        if(command[0]=='reset'):
+            'reset server'
+        if(command[0]=='exit'):
+            'close server'
+            self.skClose(socket)
         
     def skClientComm(self, command, socket):
         '''
@@ -196,38 +242,9 @@ class SKServer(object):
             print(filepath)
             filepath = self.__skFiles[int(filepath)].path
             self.skFileDist(filepath, socket)
-#         if(command == 'admin'):
-#             self.skAdminComm(socket);
-            
-#     def skAdminComm(self, socket):
-#         '''
-#         Method through which client changes certain server options.
-#         
-#         'dir': Client wants to change directory
-#         '''
-#         self.skSend('password'.encode(), socket)
-#         passData = self.skRCV(socket)
-#         passInput = passData.decode()
-#         if(passInput != self.__pass):
-#             self.skSend('no'.encode(),socket)
-#             return
-#         else:
-#             self.skSend('yes'.encode(), socket)
-#             passData = self.skRCV(socket)
-#             passInput = passData.decode()
-#             if(passInput == 'dir'):
-#                 self.skSend('okay'.encode(), socket)
-#                 passData = self.skRCV(socket)
-#                 passInput = passData.decode()
-#                 if(os.path.exists(passInput)):
-#                     self.__dir = self.skSetDir(passInput)
-#                     self.__path = passInput
-#                     self.skSend('okay'.encode(), socket)
-#                 else:
-#                     self.skSend('no'.encode(), socket)
-
-
-        
+        if(command == 'admin'):
+            self.skAdminComm(socket);
+     
     def skSetDir(self,path):
         '''
         Method that sets the directory for the server to use. Future iterations should support
@@ -313,4 +330,4 @@ class SKServer(object):
 if __name__ == "__main__":
     ServerK = SKServer();
     ServerK.skListen()
-    
+    print('Server Closed')
