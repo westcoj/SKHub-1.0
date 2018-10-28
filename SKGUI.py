@@ -28,6 +28,9 @@ class SKGUI(wx.Panel):
     def __init__(self, parent):
         '''
         Constructor
+        
+        mediaList keeps track of skFiles in the order they appear in the song display list. playIndex tracks the selection index of the list, so that
+        next and previous commands can select 1 above or below that value from the mediaList.'
         '''
         wx.Panel.__init__(self,parent=parent)
         self.mediaManager = SKMedia()
@@ -42,9 +45,10 @@ class SKGUI(wx.Panel):
         self.currentFolder = sp.GetDocumentsDir()
         
         self.timer = wx.Timer(self)
+        self.frame.Bind(wx.EVT_CLOSE, self.skExitApp)
         self.Bind(wx.EVT_TIMER,self.onTimer)
         self.timer.Start(100)
-        self.listDisplay = ''
+        self.mediaList = []
         self.playIndex = 0
         
     def skStartup(self):
@@ -64,11 +68,12 @@ class SKGUI(wx.Panel):
                 self.__pass = config['DEFAULT']['ConnectionPassword']
                 self.__admPass = config['DEFAULT']['AdminPassword']
                 self.__path = config['DEFAULT']['ClientDirectory']
-                return SKClient(self.__path, self.__port, self.__host)
+                self.__cacheMax = int(config['DEFAULT']['CacheMax'])
+                return SKClient(self.__path, self.__port, self.__host, self.__cacheMax)
             except Exception as e:
                 print(e)
                 defPath = os.path.join(dirName,'Music')
-                return SKClient(defPath, 1445, 'NOIP')
+                return SKClient(defPath, 1445, 'NOIP', 5)
 
         else:
             wx.MessageBox("Unable to load ini file, running start up.","ERROR",wx.ICON_EXCLAMATION|wx.OK)
@@ -96,6 +101,7 @@ class SKGUI(wx.Panel):
                         os.makedirs(self.__path)
                 except:
                     pass
+                self.__cacheMax = self.skPopUpValue('Enter Maximum Cache Size', '5')
                 self.__pass = self.skPopUpValue('Connection Password', '')
                 self.__admPass = self.skPopUpValue('Enter Admin Password (if known)', '')
                 try:
@@ -106,12 +112,13 @@ class SKGUI(wx.Panel):
                     config['DEFAULT']['ConnectionPassword'] = self.__pass
                     config['DEFAULT']['AdminPassword'] = self.__admPass
                     config['DEFAULT']['ClientDirectory'] = self.__path
+                    config['DEFAULT']['CacheMax'] = str(self.__cacheMax)
                     with open('sksettings.ini', 'w') as iniFile:
                         config.write(iniFile)
                 except Exception as e:
                     print(e)
                     print('Error making ini file')
-                return SKClient(self.__path, self.__port, self.__host)
+                return SKClient(self.__path, self.__port, self.__host, self.__cacheMax)
 
     def skPopUpValue(self, text, defValue):
         '''
@@ -160,10 +167,8 @@ class SKGUI(wx.Panel):
         self.mediaDisplay.InsertColumn(0 ,'Song',width = 150)
         self.mediaDisplay.InsertColumn(1 ,'Artist',width = 150)
         self.mediaDisplay.InsertColumn(2 ,'Album',width = 150)
-
 #         self.mediaList = self.mediaManager.skMediaGetList()
         
-        self.mediaList = []
         i=0
         for x in self.skc.skGetDir():
             self.mediaList.append(x)
@@ -255,9 +260,14 @@ class SKGUI(wx.Panel):
         self.frame.Bind(wx.EVT_MENU, self.skGetList, updateListItem)
         self.frame.Bind(wx.EVT_MENU, self.skListOption, listItem)
         self.frame.Bind(wx.EVT_MENU, self.skShuffleList, shuffleItem)
-
+        
+    def skExitApp(self, event):
+        '''Method runs when user hits close'''
+        self.skc.skCleanUp() #Remove Cache
+        self.frame.Destroy()
+            
     def skSetConnection(self,event):
-        self.skc = SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')#'192.168.0.183');
+        self.skc = SKClient("C:\\SoundFiles\\Client\\", 65535, '184.75.148.148');
         self.connected = self.skc.skOpen()
         self.skc.skClose()
         
@@ -309,6 +319,10 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.Append([x.title,x.artist,x.album])
             self.mediaDisplay.SetItemData(i, int(x.index))
             i+=1
+        self.playIndex = 0
+            
+    def skSortList(self, event):
+        '''Method that handles list sort based on header clicked'''
                 
     def skShuffleList(self, event):
         '''
@@ -322,6 +336,7 @@ class SKGUI(wx.Panel):
 #             self.mediaList.append(x)
 #         self.mediaManager.skSetList(self.mediaList)
     ###-----------REPORT VERSION--------_#
+        findDex = self.mediaList[self.playIndex]
         tempList = self.mediaManager.skShuffleList(self.mediaList)
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
@@ -331,7 +346,10 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.SetItemData(i, int(x.index))
             self.mediaList.append(x)
             i+=1
-#         self.mediaManager.skSetList(self.mediaList) OLD LIST USAGE
+        try:
+            self.playIndex = self.mediaList.index(findDex)
+        except ValueError:
+            self.playIndex = 0
         
     def skGetFile(self, event):
         '''
@@ -354,12 +372,14 @@ class SKGUI(wx.Panel):
         if(cs):
             #Start current song over again
             if(self.currentSong == index): #skf.index):
-                self.loadMusic(self.skc.skGetPath() + self.skc.skGetDir()[index].path)
+#                 self.loadMusic(self.skc.skGetPath() + self.skc.skGetDir()[index].path)
+                print(self.skc.skGetDir()[index].cachePath)
+                self.loadMusic(self.skc.skGetDir()[index].cachePath)
                 return
         val = self.skc.skGUIFILE(index)
-        if val == 1:
+        if val == 0:
             #continue
-            self.loadMusic(self.skc.skGetPath() + self.skc.skGetDir()[index].path)
+            self.loadMusic(self.skc.skGetDir()[index].cachePath)
             self.currentSong = index
         else:
             wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title,"ERROR",wx.ICON_EXCLAMATION|wx.OK)
@@ -414,15 +434,17 @@ class SKGUI(wx.Panel):
 
         index = self.mediaDisplay.GetItemData(self.playIndex + 1)
         val = self.skc.skGUIFILE(index)
-        if val == 1:
+        if val == 0:
             #continue
-            self.loadMusic(self.skc.skGetPath() + self.mediaList[self.playIndex + 1].path)
+            loadFile = self.skc.skGetDir()[index]
+#             self.loadMusic(self.mediaList[self.playIndex + 1].cachePath)
+            self.loadMusic(loadFile.cachePath)
             self.mediaDisplay.Select(self.playIndex + 1, True)
             self.mediaDisplay.SetItemState(self.playIndex+1, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
             self.currentSong=index
             self.playIndex+=1
         else:
-            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index],"ERROR",wx.ICON_EXCLAMATION|wx.OK)
+            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title,"ERROR",wx.ICON_EXCLAMATION|wx.OK)
  
     def onPause(self):
         self.mediaPlayer.Pause()
@@ -485,14 +507,15 @@ class SKGUI(wx.Panel):
         index = self.mediaDisplay.GetItemData(self.playIndex - 1)
         val = self.skc.skGUIFILE(index)
 #         print(self.skc.skGetPath() + self.mediaList[index])
-        if val == 1:
+        if val == 0:
             #continue
-            self.loadMusic(self.skc.skGetPath() +  self.mediaList[self.playIndex - 1].path)
+            loadFile = self.skc.skGetDir()[index]
+            self.loadMusic(loadFile.cachePath)
             self.mediaDisplay.Select(self.playIndex - 1, True)
             self.currentSong=index
             self.playIndex -= 1
         else:
-            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index],"ERROR",wx.ICON_EXCLAMATION|wx.OK)
+            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title,"ERROR",wx.ICON_EXCLAMATION|wx.OK)
  
     def onSeek(self, event):
         """

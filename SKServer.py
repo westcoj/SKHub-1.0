@@ -13,9 +13,7 @@ from pip._vendor.distlib.compat import raw_input
 from tinytag import TinyTag
 from SKFile import SKFile
 import configparser
-import signal
 import sys
-from _thread import interrupt_main
 
 
 
@@ -34,6 +32,7 @@ class SKServer(object):
         Constructor sets up server socket address/port, the default directory, and the
         number of connections the server will handle at once.
         
+        homeDir: Grabs the working directory for future use (os.chdir is used in directory walk, meaning we need a way to return)
         port: the port the server will operate on
         path: default directory
         connections: Max number of connections serviceable at one time.
@@ -47,12 +46,12 @@ class SKServer(object):
         self.__SS.settimeout(5)
         self.__hostname = socket.gethostbyname(gethostname())
         self.__pubStats = [0,0,0]  #Files Had, Files Served, Unique Conns Made
+        self.__ipList = []
         self.skSetup()
         self.__SS.bind((self.__hostname,self.__port));
         #os.chdir(path)
         self.__skFiles = []
         self.__dir = self.skSetDir(self.__path);
-        self.__ipList = []
         self.__reset = 0
         self.__exitVal = 0
     
@@ -79,40 +78,55 @@ class SKServer(object):
                 self.__path = config['DEFAULT']['ServerDirectory']
                 self.__pubStats[1] = int(config['STATS']['FilesServed'])
                 self.__pubStats[2] = int(config['STATS']['ConnectionsMade'])
-            except:
+                try:
+                    self.__ipList = config['IPADDRS']['LIST'].split(',')
+                except:
+                    pass
+            except Exception as e:
+                print(e)
+                if(os.path.isfile('settings.ini.bak')):
+                    os.remove('settings.ini.bak')
                 print('Issue reading ini file')
                 os.rename('settings.ini', 'settings.ini.bak', src_dir_fd=None, dst_dir_fd=None)
                 self.skSetup()
         else:
-            try:
-                config = configparser.ConfigParser()
-                self.__port = int(raw_input("Enter server port:  "))
-                self.__conns = int(raw_input("Enter max number of connections:  "))
-                self.__pass = raw_input("Enter connection password:  ")
-                self.__admPass = raw_input("Enter admin control password:  ")
-                self.__path = raw_input("Enter file directory path:  ")
-                if(not self.__path.endswith('\\')):
-                        self.__path.append('\\')
-                config['DEFAULT'] = {}
-                config['DEFAULT']['ServerPort'] = str(self.__port)
-                config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
-                config['DEFAULT']['ConnectionPassword'] = self.__pass
-                config['DEFAULT']['AdminPassword'] = self.__admPass
-                config['DEFAULT']['ServerDirectory'] = self.__path
-                config['STATS'] = {}
-                config['STATS']['FilesServed'] = str(self.__pubStats[1])
-                config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
-                
-                with open('settings.ini', 'w') as iniFile:
-                    config.write(iniFile)
-            except:
-                print('Error making ini file')
+#             try:
+            config = configparser.ConfigParser()
+            self.__port = int(raw_input("Enter server port:  "))
+            self.__conns = int(raw_input("Enter max number of connections:  "))
+            self.__pass = raw_input("Enter connection password:  ")
+            self.__admPass = raw_input("Enter admin control password:  ")
+            self.__path = raw_input("Enter file directory path:  ")
+            if(not self.__path.endswith('\\')):
+                    self.__path += '\\'
+            config['DEFAULT'] = {}
+            config['DEFAULT']['ServerPort'] = str(self.__port)
+            config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
+            config['DEFAULT']['ConnectionPassword'] = self.__pass
+            config['DEFAULT']['AdminPassword'] = self.__admPass
+            config['DEFAULT']['ServerDirectory'] = self.__path
+            config['STATS'] = {}
+            config['STATS']['FilesServed'] = str(self.__pubStats[1])
+            config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
+            config['IPADDRS'] = {}
+            ipstring = ''
+            for x in self.__ipList:
+                print(x)
+                ipstring = ipstring + (str(x) +',')
+            config['IPADDRS']['LIST'] = ipstring
+            
+            with open('settings.ini', 'w') as iniFile:
+                config.write(iniFile)
+#             except Exception as e:
+#                 print(e)
+#                 print('Error making ini file')
 
     def skUpdateINI(self):
+        print(self.__ipList)
         os.chdir(self.__homeDir)
         try:
-            if(os.path.isfile('settings.ini')):
-                os.remove('settings.ini')
+#             if(os.path.isfile('settings.ini')):
+#                 os.remove('settings.ini')
             config = configparser.ConfigParser()
             config['DEFAULT'] = {}
             config['DEFAULT']['ServerPort'] = str(self.__port)
@@ -123,6 +137,12 @@ class SKServer(object):
             config['STATS'] = {}
             config['STATS']['FilesServed'] = str(self.__pubStats[1])
             config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
+            config['IPADDRS'] = {}
+            ipstring = ''
+            for x in self.__ipList:
+                print(x)
+                ipstring = ipstring + (str(x) +',')
+            config['IPADDRS']['LIST'] = ipstring
             with open('settings.ini', 'w') as iniFile2:
                 config.write(iniFile2)
                             
@@ -141,9 +161,13 @@ class SKServer(object):
             while(True):
                 try:
                     CS,CS_Addr = self.__SS.accept();
+                    addr = CS.getpeername()
+                    print(addr[0])
+                    if addr[0] not in self.__ipList:
+                        self.__ipList.append(addr[0])
+                        self.__pubStats[2] += 1
                     CS.settimeout(200)
                     threading.Thread(target = self.skClientDist, args = (CS, CS_Addr)).start()
-                    self.__pubStats[2] += 1
                 except socket.timeout:
                     if(self.__exitVal == 1):
                         self.__SS.close()
@@ -242,15 +266,32 @@ class SKServer(object):
             self.__reset = 1
             self.__exitVal = 1
             return
-        if(command[0]=='reset'):
+        elif(command[0]=='conns'):
+            'Change max number of connections, requires reset'
+            connNum = int(command[1])
+            self.__conns=connNum
+            self.skUpdateINI()
+            self.__reset = 1
+            self.__exitVal = 1
+            return
+        elif(command[0]=='stats'):
+            'send ip list'
+            ipList = ''
+            for x in self.__ipList:
+                ipList += (str(x) + ',')
+            self.skSend(ipList.encode(), socket)
+            return
+        elif(command[0]=='reset'):
             'reset server'
             self.__reset = 1
             self.__exitVal = 1
             return
-        if(command[0]=='exit'):
+        elif(command[0]=='exit'):
             'close server'
             self.__exitVal = 1
             return
+        elif(command[0]=='multiple'):
+            'parse changes'
         else:
             'error with command'
             print('Wrong Command')
@@ -278,6 +319,10 @@ class SKServer(object):
             self.skFileDist(filepath, socket)
         if(command == 'stats'):
             '''Get Public Stats'''
+            dataSend = ''
+            for x in self.__pubStats:
+                dataSend = dataSend + str(x) + '&%&'
+            self.skSend(dataSend.encode(), socket)
         if(command == 'admin'):
             self.skAdminComm(socket);
         return
@@ -299,6 +344,7 @@ class SKServer(object):
         for root, dirs, files in os.walk('.'):
             for name in files:
                 if(root == '.'):
+#                     sys.stdout.buffer.write((name+'\n').encode())
                     #Tiny Tag supports other formats, but for now mp3 will suffice
                     if(name.endswith('.mp3')):
                         try:

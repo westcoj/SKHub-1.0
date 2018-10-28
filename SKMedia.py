@@ -35,26 +35,6 @@ class SKMedia(object):
         #os.chdir(plPath)
         #self.skLoadList('default.pl')
         
-#     def skMediaGetList(self):
-#         '''
-#         NOT CURRENTLY IN USE
-#         '''
-#         return self.__list
-#     
-#     def skLoadList(self, name):
-#         '''
-#         Method to load play list, not implemented, current list is just a default
-#         NOT CURRENTLY IN USE
-#         '''
-# #         with open(name) as f:
-# #             self.__list = f.readlines()
-#         if os.path.isfile(self.__plPath + name):
-#             self.__list = []
-#             skfList = [line.rstrip('\n') for line in open(name,encoding='utf-8')]
-#             for x in skfList:
-#                 skFData = x.split('&%&')
-#                 skF = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
-#                 self.__list.append(skF)
          
     def skShuffleList(self,listcon):
         '''
@@ -64,21 +44,6 @@ class SKMedia(object):
         listCopy = listcon
         random.shuffle(listCopy)
         return listCopy
-        
-#     def skSetList(self,content):
-#         '''
-#         Method for rewriting entire list (default only, update call)
-#         NOT CURRENTLY IN USE
-#         '''
-#         with open('default.pl', 'w',encoding = 'utf-8') as f:
-#             for x in content:
-#                 f.write("%s\n" % x)
-#                 
-#         self.__list = content
-                
-#     def skTestList(self):
-#         for x in self.__list:
-#             print(x)
             
     #----------------------------------------DB METHODS-------------------------#
     
@@ -131,11 +96,16 @@ class SKMedia(object):
     def skdbSortList(self, option, name):
         '''
         Method for sorting a play list. Query the db for the proper table and sorting.
-        Returns its content.
+        Returns its content. Might be better to implement in GUI?
         
         NEEDS TO BE IMPLEMENTED
         '''
-        
+        if(option == 1):
+            option = 'title'
+        if(option == 2):
+            option = 'artist'
+        if(option == 3):
+            option = 'album'
         try:
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
