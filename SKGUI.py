@@ -266,7 +266,7 @@ class SKGUI(wx.Panel):
         '''
         Method for updating default display list
         '''
-        self.skc.comSwitch('update')
+        self.skc.skUserComm('update')
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
         i = 0

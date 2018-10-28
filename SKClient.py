@@ -8,6 +8,7 @@ import struct
 from pip._vendor.distlib.compat import raw_input
 import os
 from SKFile import SKFile
+import sys #REMOVE LATER
 
 class SKClient(object):
     '''
@@ -35,32 +36,9 @@ class SKClient(object):
         self.__playIndex = []
         self.__sockStat = False
         self.__skFiles = []
-        self.skSetup()
-        
-    def skSetup(self):
-        '''
-        Method for loading skcsl18 file for directory storage
-        Old method for default directory, will be phased out. Replaced with database option instead.
-        '''
-        dirName = os.path.dirname(os.path.realpath(__file__))
-        statPath = os.path.join(dirName, 'stat')
-        if not os.path.isdir(statPath):
-            os.makedirs(statPath)
-        if os.path.isfile(statPath + '\\skcfl18.sk'):
-            try:
-                self.__dir = [line.rstrip('\n') for line in open(statPath + '\\skcfl18.sk', encoding = 'utf-8')]
-                self.__dir.pop()
-                i=0
-                self.__skFiles = []
-                for x in self.__dir:
-                    skFData = x.split('&%&')
-                    skf = SKFile(skFData[0],i,skFData[2],skFData[3],skFData[4])
-                    self.__skFiles.append(skf)
-                    i+=1
-            except Exception as e:
-                print(e)
-                return 0
-            
+        self.__admpass = 'None'
+#         self.skSetup()
+          
     def skWriteSKC(self):
         '''
         Method that writes the updated directory list to the setup file.
@@ -98,6 +76,7 @@ class SKClient(object):
         '''
         
         self.__CS = socket(AF_INET,SOCK_STREAM)
+#         self.__CS.settimeout(200)
         try:
             self.__CS.connect((self.__hostname, self.__port))
             self.__sockStat = True
@@ -209,12 +188,15 @@ class SKClient(object):
         'file': user is going to ask for a file
         'index': user is asking for a file by index
         'update': user is asking for directory update
-        'ls': User is asking for directory display
+        'ls': User is asking for directory display (Can cause crash in non-gui mode, fixable but I'm lazy & uneccesary)
         'stats': User wants to see stats about server
         '''
         
         if(command=='update'):
-            self.skOpen()
+            val = self.skOpen()
+            if(val == 1):
+                print("Error Contacting Server")
+                return 1
             self.skSend('ls'.encode())
             data = self.skRCV().decode()
             self.__dir = data.split('\n')
@@ -232,20 +214,22 @@ class SKClient(object):
                 print((str(i) + ': ' + x).encode().decode())
                 i+=1
         if(command == 'file'):
-            self.skOpen()
+            val = self.skOpen()
+            if(val == 1):
+                print("Error Contacting Server")
+                return 1
             index = raw_input("Enter index: ")
             self.skGUIFILE(index)
             self.skClose()
         if(command == 'admin'):
-            self.skOpen()
-            self.skSend('admin'.encode())
-            conf = self.skRCV()
-            if(conf.decode()=='authtoken'):
-                command = raw_input('Enter Command &%& Option')
-                self.skAdminComm(command)
+            command2 = raw_input('Enter Command')
+            option = raw_input('Enter Option')
+            self.skAdminComm(command2, option)
+        if(command=='exit'):
+            sys.exit() #REMOVE LATER
 
                        
-    def skAdminComm(self, command):
+    def skAdminComm(self, command, option):
         '''
         Method for handling admin tasks on server through client. Currently needs better password authentication
         should handle basic tasks for changing server settings
@@ -255,18 +239,36 @@ class SKClient(object):
         'port': User wants to change the operating port (requires restart)
         'stats': User wants to see advanced statistics about server
         '''
-        auth = raw_input("Enter password: ")
-        self.skSend(auth.encode())
-        conf = self.skRCV()
-        if(conf.decode()=='no'):
-            '''Bad Password'''
+        val = self.skOpen()
+        if(val == 1):
+            print("Error Contacting Server")
             return 1
-        elif(conf.decode()=='yes'):
-            if(command == 'exit'):
-                self.skSend('exit'.encode())
-                self.skClose()
-                return 0
-        
+        self.skSend('admin'.encode())
+        conf = self.skRCV()
+        if(conf.decode()=='authtoken'):
+            self.skSend(self.__admpass.encode())
+            conf = self.skRCV()
+            if(conf.decode()=='no'):
+                '''Bad Password'''
+                return 1
+            elif(conf.decode()=='yes'):
+                if(command == 'exit'):
+                    self.skSend('exit'.encode())
+                    self.skClose()
+                    return 0
+                if(command == 'reset'):
+                    self.skSend('reset'.encode())
+                    self.skClose()
+                    return 0
+                if(command == 'port'):
+                    self.skSend(('port&%&'+option).encode())
+                    self.skClose()
+                    self.__port = int(option)
+                    return 0
+                else:
+                    self.skSend('error'.encode())
+                    self.skClose()
+                    return 0
         
 if __name__ == "__main__":
     port = raw_input("Enter port:  ")

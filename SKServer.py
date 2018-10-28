@@ -42,25 +42,22 @@ class SKServer(object):
         dir: list of all songs in string format (For sending to client, probably not needed since skfiles have
          this capability)
         '''
-        self.__SS = socket.socket(socket.AF_INET,socket.SOCK_STREAM,0);
+        self.__homeDir = os.path.dirname(os.path.realpath(__file__))
+        self.__SS = socket.socket(socket.AF_INET,socket.SOCK_STREAM,0)
+        self.__SS.settimeout(5)
         self.__hostname = socket.gethostbyname(gethostname())
+        self.__pubStats = [0,0,0]  #Files Had, Files Served, Unique Conns Made
         self.skSetup()
         self.__SS.bind((self.__hostname,self.__port));
         #os.chdir(path)
         self.__skFiles = []
         self.__dir = self.skSetDir(self.__path);
-        self.__filesServed = 0;
-        
-    def skClose(self, cs):
-        '''
-        Method that closes server from an informing thread. Makes use of a seccond connection attempt to
-        raise an error in the main listening loop to escape.
-        '''
-        self.skUpdateINI()
-        cs.close()
-        socket.socket(socket.AF_INET,socket.SOCK_STREAM).connect((self.__hostname,self.__port))
-        self.__SS.close()
-        print('Goodbye')
+        self.__ipList = []
+        self.__reset = 0
+        self.__exitVal = 0
+    
+    def skReset(self):
+        return self.__reset
         
     def skSetup(self):
         '''
@@ -69,7 +66,7 @@ class SKServer(object):
         UPDATE: PATH CHECKING
         '''
         #Ensure path is correct
-        dirName = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(self.__homeDir)
         if(os.path.isfile('settings.ini')):
             #Process ini file
             try:
@@ -80,10 +77,12 @@ class SKServer(object):
                 self.__pass = config['DEFAULT']['ConnectionPassword']
                 self.__admPass = config['DEFAULT']['AdminPassword']
                 self.__path = config['DEFAULT']['ServerDirectory']
+                self.__pubStats[1] = int(config['STATS']['FilesServed'])
+                self.__pubStats[2] = int(config['STATS']['ConnectionsMade'])
             except:
                 print('Issue reading ini file')
                 os.rename('settings.ini', 'settings.ini.bak', src_dir_fd=None, dst_dir_fd=None)
-                self.skSetup
+                self.skSetup()
         else:
             try:
                 config = configparser.ConfigParser()
@@ -100,14 +99,20 @@ class SKServer(object):
                 config['DEFAULT']['ConnectionPassword'] = self.__pass
                 config['DEFAULT']['AdminPassword'] = self.__admPass
                 config['DEFAULT']['ServerDirectory'] = self.__path
+                config['STATS'] = {}
+                config['STATS']['FilesServed'] = str(self.__pubStats[1])
+                config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
+                
                 with open('settings.ini', 'w') as iniFile:
                     config.write(iniFile)
             except:
                 print('Error making ini file')
-            #Make new ini
 
     def skUpdateINI(self):
+        os.chdir(self.__homeDir)
         try:
+            if(os.path.isfile('settings.ini')):
+                os.remove('settings.ini')
             config = configparser.ConfigParser()
             config['DEFAULT'] = {}
             config['DEFAULT']['ServerPort'] = str(self.__port)
@@ -115,9 +120,14 @@ class SKServer(object):
             config['DEFAULT']['ConnectionPassword'] = self.__pass
             config['DEFAULT']['AdminPassword'] = self.__admPass
             config['DEFAULT']['ServerDirectory'] = self.__path
-            with open('settings.ini', 'w') as iniFile:
-                config.write(iniFile)
-        except:
+            config['STATS'] = {}
+            config['STATS']['FilesServed'] = str(self.__pubStats[1])
+            config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
+            with open('settings.ini', 'w') as iniFile2:
+                config.write(iniFile2)
+                            
+        except Exception as e:
+            print(e)
             print('Error making ini file')
             
     def skListen(self):
@@ -129,13 +139,24 @@ class SKServer(object):
             self.__SS.listen(self.__conns)
             print('Server listening on port: ' + str(self.__port))
             while(True):
-                CS,CS_Addr = self.__SS.accept();
-                CS.settimeout(200)
-                threading.Thread(target = self.skClientDist, args = (CS, CS_Addr)).start()
-        except socket.error:
-            print('Closing Server')
-            return 0
-        
+                try:
+                    CS,CS_Addr = self.__SS.accept();
+                    CS.settimeout(200)
+                    threading.Thread(target = self.skClientDist, args = (CS, CS_Addr)).start()
+                    self.__pubStats[2] += 1
+                except socket.timeout:
+                    if(self.__exitVal == 1):
+                        self.__SS.close()
+                        print(self.__port)
+                        self.skUpdateINI()
+                        print('Closing Server TRU')
+                        return 0  
+                except socket.error:
+                    print('Closing Server')
+                    return 0
+        except Exception as e:
+            print(e)
+    
     def skClientDist(self,cs,csAddr):
         '''
         Thread method for handling single connections to clients. If a selector option is used, will
@@ -151,9 +172,9 @@ class SKServer(object):
         comm = commData.decode()
         self.skClientComm(comm,cs)   
         cs.close()
+#         sys.exit()
+        return
             
-        
-        
     def skSend(self, data, socket):
         '''
         skSend will be the main method of sending information to the server. Be it a command or filename.
@@ -203,7 +224,6 @@ class SKServer(object):
         'exit': User is shutting down server.
         'reset': User is resetting the server.
         'dir': User is changing/deleting/adding directory.
-        UNIMPLEMENTED
         '''
         self.skSend('authtoken'.encode(), socket)
         auth = self.skRCV(socket)
@@ -216,12 +236,26 @@ class SKServer(object):
         command = commData.decode().split('&%&')
         if(command[0]=='port'):
             'Change port, requires reset'
+            portNum = int(command[1])
+            self.__port=portNum
+            self.skUpdateINI()
+            self.__reset = 1
+            self.__exitVal = 1
+            return
         if(command[0]=='reset'):
             'reset server'
+            self.__reset = 1
+            self.__exitVal = 1
+            return
         if(command[0]=='exit'):
             'close server'
-            self.skClose(socket)
-        
+            self.__exitVal = 1
+            return
+        else:
+            'error with command'
+            print('Wrong Command')
+            return
+
     def skClientComm(self, command, socket):
         '''
         Method that takes in client input and passes it to the proper command
@@ -242,8 +276,11 @@ class SKServer(object):
             print(filepath)
             filepath = self.__skFiles[int(filepath)].path
             self.skFileDist(filepath, socket)
+        if(command == 'stats'):
+            '''Get Public Stats'''
         if(command == 'admin'):
             self.skAdminComm(socket);
+        return
      
     def skSetDir(self,path):
         '''
@@ -270,6 +307,7 @@ class SKServer(object):
                             skF = SKFile(name,i,tag.title,tag.artist,tag.album)
                             i+=1
                             self.__skFiles.append(skF)
+                            self.__pubStats[0] += 1
                         #Special duration error on TinyTag Most likely Throws 2 errors
                         except Exception as e:
                             try:
@@ -277,6 +315,7 @@ class SKServer(object):
                                 skF = SKFile(name,i,tag.title,tag.artist,tag.album)
                                 i+=1
                                 self.__skFiles.append(skF)
+                                self.__pubStats[0] += 1
                             #Second TinyTag failure, give up on that file
                             except:
                                 self.__errList.append(name)
@@ -289,20 +328,22 @@ class SKServer(object):
                             skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
                             i+=1
                             self.__skFiles.append(skF)
+                            self.__pubStats[0] += 1
                         except:
                             try:
                                 tag = TinyTag.get(newRoot, duration=False)
                                 skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
                                 i+=1
                                 self.__skFiles.append(skF)
+                                self.__pubStats[0] += 1
                             except:
                                 self.__errList.append(name)
                                 pass
         for x in self.__skFiles:
             retArr2 = retArr2 + x.skToString() + '\n'
+#             sys.stdout.buffer.write((x.skToString()+'\n').encode())
 #         for x in self.__errList:
 #             sys.stdout.buffer.write((x+'\n').encode())
-
         return retArr2
     
         
@@ -323,11 +364,15 @@ class SKServer(object):
             file.close()
             print('Sending file')
             self.skSend(fileData, socket)
+            self.__pubStats[1] += 1
         except Exception as e:
             print(e)
             
             
 if __name__ == "__main__":
-    ServerK = SKServer();
-    ServerK.skListen()
-    print('Server Closed')
+    val = 1
+    while(val==1):
+        ServerK = SKServer();
+        ServerK.skListen()
+        val = ServerK.skReset()
+    os._exit(0)
