@@ -25,6 +25,10 @@ public class SKFile {
         songIndex = index;
     }
 
+    public String getFilePath(){
+        return filePath;
+    }
+
     public String toString(){
         return filePath + " &%& " + songIndex + " &%& " + songTitle +
                 " &%& " + songArtist + " &%& " + songAlbum;

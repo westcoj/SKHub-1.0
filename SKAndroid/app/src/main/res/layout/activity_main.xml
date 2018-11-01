@@ -2,32 +2,86 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context=".MainActivity"
+    tools:layout_editor_absoluteY="81dp">
 
     <TextView
-        android:id="@+id/message"
+        android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/activity_horizontal_margin"
-        android:layout_marginLeft="@dimen/activity_horizontal_margin"
-        android:layout_marginTop="@dimen/activity_vertical_margin"
-        android:text="@string/title_home"
-        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="3dp"
+        android:text="@string/home"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <android.support.design.widget.BottomNavigationView
-        android:id="@+id/navigation"
-        android:layout_width="0dp"
+    <Button
+        android:id="@+id/playButton"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="0dp"
-        android:layout_marginEnd="0dp"
-        android:background="?android:attr/windowBackground"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="136dp"
+        android:onClick="playPause"
+        android:text="@string/playButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/nextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="136dp"
+        android:layout_marginEnd="16dp"
+        android:text="@string/nextButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/connectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="100dp"
+        android:onClick="connect"
+        android:text="@string/connectButton"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:menu="@menu/navigation" />
+        app:layout_constraintEnd_toStartOf="@+id/nextButton"
+        app:layout_constraintHorizontal_bias="0.576"
+        app:layout_constraintStart_toEndOf="@+id/playButton" />
+
+    <EditText
+        android:id="@+id/portBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="244dp"
+        android:layout_marginEnd="8dp"
+        android:ems="10"
+        android:inputType="number"
+        android:text="@string/portBox"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/ipBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="84dp"
+        android:layout_marginBottom="8dp"
+        android:ems="10"
+        android:inputType="textAutoComplete"
+        android:text="@string/ipBox"
+        app:layout_constraintBottom_toTopOf="@+id/connectButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/portBox"
+        app:layout_constraintVertical_bias="0.975" />
 
 </android.support.constraint.ConstraintLayout>

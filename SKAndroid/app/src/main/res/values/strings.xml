@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">SKAndroid</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="home">Prototype demo</string>
+    <string name="playButton">Play/Pause</string>
+    <string name="nextButton">Next</string>
+    <string name="connectButton">Connect</string>
+    <string name="portBox">Port</string>
+    <string name="ipBox">IP Address</string>
 </resources>
