@@ -1,8 +1,4 @@
-'''
-Created on Sep 25, 2018
-
-@author: Cody
-'''
+''' @author: Cody, Jamie '''
 
 import wx
 import wx.media
@@ -13,7 +9,8 @@ from SKMedia import SKMedia
 from SKFile import SKFile
 import configparser
 import ipaddress
-
+# for future use
+# import wx.lib.agw.aquabutton as AB
 
 dirName = os.path.dirname(os.path.realpath(__file__))
 #HAS TO BE CHANGED LATER
@@ -34,7 +31,6 @@ class SKGUI(wx.Panel):
         self.frame = parent
         self.currentVolume = 50
         self.createMenu()
-#         self.skSetConnection(wx.EVT_CATEGORY_ALL)
         self.skc = self.skStartup() #SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')
         self.createLayout()
 
@@ -148,11 +144,10 @@ class SKGUI(wx.Panel):
         except:
             self.Destroy()
 
-        #self.songTracker =
         self.playSlider = wx.Slider(self, size=wx.DefaultSize, style = wx.SL_HORIZONTAL)
         self.Bind(wx.EVT_SLIDER,self.onSeek,self.playSlider)
 
-        self.txt = wx.StaticText(self, label = 'SongTitle',style = wx.ALIGN_CENTER,pos=(125,200))
+        #self.txt = wx.StaticText(self, label = 'SongTitle',style = wx.ALIGN_CENTER,pos=(125,200))
         #self.txt1 = wx.StaticText(self, label = 'SongArtist', style = wx.ALIGN_CENTER)
 
         self.volumeCOP = wx.Slider(self, style=wx.SL_VERTICAL|wx.SL_INVERSE)
@@ -160,13 +155,10 @@ class SKGUI(wx.Panel):
         self.volumeCOP.SetValue(self.currentVolume)
         self.volumeCOP.Bind(wx.EVT_SLIDER, self.onSetVolume)
 
-#         self.mediaDisplay = wx.ListBox(self, size=wx.DefaultSize, choices = [],style=wx.LB_SINGLE)
         self.mediaDisplay = wx.ListCtrl(self, size=(-1,450), style = wx.LC_REPORT|wx.LC_SINGLE_SEL)
         self.mediaDisplay.InsertColumn(0 ,'Song',width = 150)
         self.mediaDisplay.InsertColumn(1 ,'Artist',width = 150)
         self.mediaDisplay.InsertColumn(2 ,'Album',width = 150)
-
-#         self.mediaList = self.mediaManager.skMediaGetList()
 
         i=0
         for x in self.skc.skGetDir():
@@ -220,15 +212,8 @@ class SKGUI(wx.Panel):
         # create play/pause toggle button
         img = wx.Bitmap(os.path.join(bitmapDir, "play.png"))
         self.playPauseBtn = buttons.GenBitmapToggleButton(self, bitmap=img, name="play")
+        #self.playPauseBtn = AB.AquaButton(self, bitmap=img)
         self.playPauseBtn.Enable(False)
-
-            # upbmp = wx.Bitmap(opj("demoimages/rewind.png"), wx.BITMAP_TYPE_PNG)
-            # disbmp = wx.Bitmap(opj("demoimages/rewinddisabled.png"), wx.BITMAP_TYPE_PNG)
-            # self.rewind = SBitmapButton(self.panel, -1, upbmp, (48, 48))
-            # self.rewind.SetUseFocusIndicator(False)
-            # self.rewind.SetBitmapDisabled(disbmp)
-            #
-            # self.rewind.Bind(wx.EVT_BUTTON, self.OnRewind)
 
         img = wx.Bitmap(os.path.join(bitmapDir, "pause.png"))
         self.playPauseBtn.SetBitmapSelected(img)
@@ -273,7 +258,6 @@ class SKGUI(wx.Panel):
         shuffleItem = mediaMenu.Append(wx.Window.NewControlId(), '&Shuffle', 'Shuffle Current List')
         menubar.Append(mediaMenu, '&Media')
 
-#         connection_menu =
         self.frame.SetMenuBar(menubar)
         self.frame.Bind(wx.EVT_MENU, self.skSetConnection, conn_item)
         self.frame.Bind(wx.EVT_MENU, self.skGetList, updateListItem)
@@ -281,7 +265,7 @@ class SKGUI(wx.Panel):
         self.frame.Bind(wx.EVT_MENU, self.skShuffleList, shuffleItem)
 
     def skSetConnection(self,event):
-        self.skc = SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')#'192.168.0.183');
+        self.skc = SKClient("/Users/jamiepenzien/Documents/Music", 1111, '127.0.0.1')
         self.connected = self.skc.skOpen()
         self.skc.skClose()
 
@@ -312,16 +296,7 @@ class SKGUI(wx.Panel):
         '''
         Method that loads a play list from manager
         '''
-#         self.mediaList = []
-#         self.mediaDisplay.Clear()
-#         if(name == 'Library'):
-#             name = 'defPlaylist'
-#         vals = self.mediaManager.skdbGetList(name)
-#         for x in vals:
-#                 self.mediaList.append(x)
-#                 self.mediaDisplay.Append((x.artist.strip(' ') + ' : ' + x.title),x)
-##########----------REPORT VERSION-----------------#
-
+        #----------------------REPORT VERSION----------------------#
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
         if(name == 'Library'):
@@ -338,14 +313,7 @@ class SKGUI(wx.Panel):
         '''
         Method that shuffles currently selected list
         '''
-#         tempList = self.mediaManager.skShuffleList(self.mediaList)
-#         self.mediaList = []
-#         self.mediaDisplay.Clear()
-#         for x in tempList:
-#             self.mediaDisplay.Append((x.artist.strip(' ') + ' : ' + x.title),x)
-#             self.mediaList.append(x)
-#         self.mediaManager.skSetList(self.mediaList)
-    ###-----------REPORT VERSION--------_#
+        #----------------------REPORT VERSION----------------------#
         tempList = self.mediaManager.skShuffleList(self.mediaList)
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
@@ -355,19 +323,15 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.SetItemData(i, int(x.index))
             self.mediaList.append(x)
             i+=1
-#         self.mediaManager.skSetList(self.mediaList) OLD LIST USAGE
 
     def skGetFile(self, event):
         '''
         Method for downloading a music file, upon finishing download, play music
         '''
-        #Get data of current box selection
-#         skf = self.mediaDisplay.GetClientData(self.mediaDisplay.GetSelection())
-#         indexSKF = self.mediaDisplay.GetItemData(self.mediaDisplay.GetFocusedItem())
         indexSKF = self.mediaDisplay.GetItemData(event.GetIndex())
         #Song's unique index
-        self.playIndex = self.mediaDisplay.GetFocusedItem()#self.mediaDisplay.GetSelection()
-        index = int(indexSKF) #int(skf.index)
+        self.playIndex = self.mediaDisplay.GetFocusedItem()
+        index = int(indexSKF)
         try:
             #Has a song been played yet, avoid attempted load of current song
             self.currentSong
@@ -377,7 +341,7 @@ class SKGUI(wx.Panel):
             cs = True
         if(cs):
             #Start current song over again
-            if(self.currentSong == index): #skf.index):
+            if(self.currentSong == index):
                 self.loadMusic(self.skc.skGetPath() + self.skc.skGetDir()[index].path)
                 return
         val = self.skc.skGUIFILE(index)
@@ -427,7 +391,7 @@ class SKGUI(wx.Panel):
 #         else:
 #             wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index],"ERROR",wx.ICON_EXCLAMATION|wx.OK)
 
-        ###--------REPORT VERSION-------###
+        #----------------------REPORT VERSION----------------------#
         self.mediaPlayer.Stop()
         #Stop if final song
         if(self.playIndex == len(self.mediaList)-1):
@@ -501,14 +465,13 @@ class SKGUI(wx.Panel):
 #             self.playIndex -= 1
 #         else:
 #             wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index],"ERROR",wx.ICON_EXCLAMATION|wx.OK)
-    ####------------REPORT VERSION--------------------###
+        #----------------------REPORT VERSION----------------------#
         self.mediaPlayer.Stop()
         if(self.playIndex == 0):
             self.onStop(wx.EVT_CATEGORY_ALL)
             return
         index = self.mediaDisplay.GetItemData(self.playIndex - 1)
         val = self.skc.skGUIFILE(index)
-#         print(self.skc.skGetPath() + self.mediaList[index])
         if val == 1:
             #continue
             self.loadMusic(self.skc.skGetPath() +  self.mediaList[self.playIndex - 1].path)
@@ -531,7 +494,6 @@ class SKGUI(wx.Panel):
         Sets the volume of the music player
         """
         self.currentVolume = self.volumeCOP.GetValue()
-#         print "setting volume to: %s" % int(self.currentVolume)
         self.mediaPlayer.SetVolume(float(self.currentVolume/100))
 
     def onStop(self, event):
@@ -766,8 +728,6 @@ class SKEditFrame(wx.Frame):
             wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
             return
         self.skm.skdbUpdateListMany(0,self.editList,skFToRem)
-#         for x in toRem:
-#             self.skm.skdbUpdateList(0,self.editList,self.editDisplay.GetClientData(x))
         self.editDisplay.Clear()
         for x in self.skm.skdbGetList(self.editList):
             self.editDisplay.Append(x.title, x)
