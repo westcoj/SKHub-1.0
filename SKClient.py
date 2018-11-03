@@ -8,6 +8,7 @@ import struct
 from pip._vendor.distlib.compat import raw_input
 import os
 from SKFile import SKFile
+import sys #REMOVE LATER
 
 class SKClient(object):
     '''
@@ -17,7 +18,7 @@ class SKClient(object):
     '''
 
 
-    def __init__(self, path, port, ip):
+    def __init__(self, path, port, ip, max):
         '''
         SKCLient will be built with several methods all revolving the socket initialized within
         the constructor. (Unless a higher level communication method is chosen, further
@@ -26,53 +27,30 @@ class SKClient(object):
         port: network port to operate on
         ip: IP address of the server to contact
         path: location where sound files are held
+        dir: String list of files on server
+        dirPath: Path of client song directory 
+        sockStat: Status of if connection is open or not
+        skFiles: List of songs in skFile format
+        admPass: Password for admin connection      
+        cacheMax: Maximum number of songs held in cache specified by user  
         '''
         self.__CS = socket(AF_INET,SOCK_STREAM)
         self.__hostname = ip
         self.__port = port
         self.__dir = []
-        self.__dirPath = path
-        self.__playIndex = []
+        dirName = os.path.dirname(os.path.realpath(__file__))
+        self.__dirPath = os.path.join(dirName,'cache')
+        if not os.path.isdir(self.__dirPath):
+            os.makedirs(self.__dirPath)
         self.__sockStat = False
         self.__skFiles = []
-        self.skSetup()
-        
-    def skSetup(self):
-        '''
-        Method for loading skcsl18 file for directory storage
-        Old method for default directory, will be phased out. Replaced with database option instead.
-        '''
-        dirName = os.path.dirname(os.path.realpath(__file__))
-        statPath = os.path.join(dirName, 'stat')
-        if not os.path.isdir(statPath):
-            os.makedirs(statPath)
-        if os.path.isfile(statPath + '\\skcfl18.sk'):
-            try:
-                self.__dir = [line.rstrip('\n') for line in open(statPath + '\\skcfl18.sk', encoding = 'utf-8')]
-                self.__dir.pop()
-                i=0
-                self.__skFiles = []
-                for x in self.__dir:
-                    skFData = x.split('&%&')
-                    skf = SKFile(skFData[0],i,skFData[2],skFData[3],skFData[4])
-                    self.__skFiles.append(skf)
-                    i+=1
-            except Exception as e:
-                print(e)
-                return 0
-            
-    def skWriteSKC(self):
-        '''
-        Method that writes the updated directory list to the setup file.
-        Will be phased out for database version.
-        '''
-        
-        dirName = os.path.dirname(os.path.realpath(__file__))
-        statPath = os.path.join(dirName, 'stat')
-        with open(statPath + '\\skcfl18.sk','w',encoding='utf-8') as f:
-            for x in self.__dir:
-                f.write("%s\n" % x)
-                            
+        self.__admpass = 'None'
+        self.__serveriplist = []
+        self.__pubStats = [] #files had, files served, unique connections made
+        self.__privStats = [] #connections allowed
+        self.__cache = [] #Contains skFiles with CachePaths
+        self.__cacheMax = max
+#                             
     def setDir(self, path):
         self.__dirPath = path
         
@@ -98,12 +76,17 @@ class SKClient(object):
         '''
         
         self.__CS = socket(AF_INET,SOCK_STREAM)
+#         self.__CS.settimeout(200)
         try:
             self.__CS.connect((self.__hostname, self.__port))
             self.__sockStat = True
             return 0
         except:
             return 1
+        
+    def skCacheCheck(self, index):
+        '''Method that checks cache to see if song is already there'''
+        return index in self.__cache
 
         
     def skClose(self):
@@ -151,26 +134,14 @@ class SKClient(object):
             data += packet
         return data
     
-    def skRCVFile(self, name):
-        '''
-        Method for handling file transfer from server on request from server. This method handles name entries.
-        Phased out for the more reliable index request (Files no longer requested by name)
-        '''
-        self.skSend(name.encode())
-        fileData = self.skRCV()
-        #print(len(fileData))
-        if fileData:
-            file = open(self.__dirPath + name, 'wb+')        
-            file.write(fileData);
-            file.close();
-            return 1
-        else:
-            return 0
-    
     def skGUIFILE(self, index):
         '''
         Method for GUI to prep server for index request
         '''
+        if(self.skCacheCheck(index)):
+            self.__cache.remove(index)
+            self.__cache.append(index)
+            return 0
         connected = self.skOpen()
         if(connected == 0):
             self.skSend('file'.encode())
@@ -180,39 +151,9 @@ class SKClient(object):
                 if(answer == 'okay'):
                     return self.skRCVFileIndex2(index)
                 else:
-                    return 0
+                    return 1
             else:
-                return 0
-            self.skClose()
-            
-    def skRCVFileIndex(self,index):
-        '''
-        Method for handling file transfer from server on request from server. This method handles index entries.
-        Phased out for the secondary method.
-        
-        index: Number of file to download
-        '''
-        
-        if not self.__sockStat:
-            self.skOpen()
-        name = self.__dir[index]
-        self.skSend(name.encode())
-        fileData = self.skRCV()
-        if fileData:
-        #print(len(fileData))
-            if not os.path.exists(os.path.dirname(self.__dirPath + name)):
-                try:
-                    os.makedirs(os.path.dirname(self.__dirPath + name))
-                except:
-                    return 0
-            file = open(self.__dirPath + name, 'wb+')        
-            file.write(fileData);
-            file.close();
-            return 1
-        else:
-            return 0
-        
-        if self.__sockStat:
+                return 1
             self.skClose()
             
     def skRCVFileIndex2(self,index):
@@ -227,37 +168,34 @@ class SKClient(object):
         self.skSend(str(index).encode())
         fileData = self.skRCV()
         try:
-            name = self.__skFiles[index].path
-        except:
-            return 0
+            name = (self.__skFiles[index].index + '.mp3')
+        except Exception as e:
+            print(e)
+            return 1
         if fileData:
             if not os.path.exists(os.path.dirname(self.__dirPath + name)):
                 try:
                     os.makedirs(os.path.dirname(self.__dirPath + name))
                 except Exception as e:
                     print(e)
-                    return 0
-            file = open(self.__dirPath + name, 'wb+')        
+                    return 1
+            path = (self.__dirPath + '\\' + name)
+            file = open(path, 'wb+')        
             file.write(fileData);
             file.close();
-            return 1
-        else:
+            self.__skFiles[index].skAddPath(path)
+            if(len(self.__cache)>self.__cacheMax):
+                file = self.__cache.pop(0)
+                os.remove(self.__skFiles[file].cachePath)
+            self.__cache.append(index)
             return 0
+        else:
+            return 1
         
         if self.__sockStat:
             self.skClose()
-    
-    def comLine(self):
-        '''
-        Method that runs the client as a command line application. Takes in user input and
-        passes it on. Won't be present in final product
-        '''
         
-        command = raw_input('Enter Command: ')
-        self.comSwitch(command)
-        
-        
-    def comSwitch(self, command):
+    def skUserComm(self, command):
         '''
         Method that takes in client input and passes it to the proper command
         
@@ -265,12 +203,15 @@ class SKClient(object):
         'file': user is going to ask for a file
         'index': user is asking for a file by index
         'update': user is asking for directory update
-        'ls': User is asking for directory display
-        'path': User wants to change dl directory? (temp files will be removed after they reach a certain index)
+        'ls': User is asking for directory display (Can cause crash in non-gui mode, fixable but I'm lazy & uneccesary)
+        'stats': User wants to see stats about server
         '''
         
         if(command=='update'):
-            self.skOpen()
+            val = self.skOpen()
+            if(val == 1):
+                print("Error Contacting Server")
+                return 1
             self.skSend('ls'.encode())
             data = self.skRCV().decode()
             self.__dir = data.split('\n')
@@ -281,43 +222,44 @@ class SKClient(object):
                 skf = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
                 self.__skFiles.append(skf)
             self.skClose()
-            self.skWriteSKC()
-        if(command == 'ls'):
+        elif(command == 'ls'):
             i=0
             for x in self.__dir:
                 print((str(i) + ': ' + x).encode().decode())
                 i+=1
-        if(command == 'file'):
-            self.skOpen()
-            name = raw_input("Enter name: ")
-            self.skSend('file'.encode())
-            answerData = self.skRCV();
-            answer = answerData.decode()
-            if(answer == 'okay'):
-                got = self.skRCVFile(name)
-                if(got == 0):
-                    print('file download error')
-            else:
-                print("No beuno")
+        elif(command == 'file'):
+            val = self.skOpen()
+            if(val == 1):
+                print("Error Contacting Server")
+                return 1
+            index = raw_input("Enter index: ")
+            self.skGUIFILE(index)
             self.skClose()
-        if(command == 'index'):
-            self.skOpen()
-            name = raw_input("Enter index: ")
-            self.skSend('file'.encode())
-            answerData = self.skRCV();
-            if answerData:
-                answer = answerData.decode()
-                if(answer == 'okay'):
-                    self.skRCVFileIndex2(int(name))
-                else:
-                    print("No beuno")
-            else:
-                print('socket dl error')
-            self.skClose()
-        if(command == 'admin'):
-            self.skAdminComm();
+        elif(command == 'admin'):
+            command = raw_input('Enter Command')
+            option = raw_input('Enter Option')
+            self.skAdminComm(command, option)
+            return
+        elif(command == 'stats'):
+            val = self.skOpen()
+            if(val == 1):
+                print("Error Contacting Server")
+                return 1
+            self.skSend('stats'.encode())
+            data = self.skRCV().decode()
+            self.__pubStats = []
+            tempStats = data.split('&%&') #files had, served, conns made
+            tempStats.pop()
+            for x in tempStats:
+                print(x)
+                self.__pubStats.append(int(x))
+#             print(self.__pubStats)
+        elif(command=='exit'):
+            self.skCleanUp()
+            sys.exit() #REMOVE LATER
+
                        
-    def skAdminComm(self):
+    def skAdminComm(self, command, option):
         '''
         Method for handling admin tasks on server through client. Currently needs better password authentication
         should handle basic tasks for changing server settings
@@ -325,55 +267,77 @@ class SKClient(object):
         'dir': User wants to change the server directory
         'close': User wants to shut down the server
         'port': User wants to change the operating port (requires restart)
+        'stats': User wants to see advanced statistics about server
+        'MULTI': Later command to support changing multiple options of server before reset. GUI specific NOT IMPLEMENTED
         '''
-        
-        self.skOpen()
+        val = self.skOpen()
+        if(val == 1):
+            print("Error Contacting Server")
+            return 1
         self.skSend('admin'.encode())
-        answerData = self.skRCV()
-        answer = answerData.decode()
-        if(answer == 'password'):
-            password = raw_input("Enter Password: ")
-            self.skSend(password.encode()) #THIS MUST BE ENCRYPTED
-            answerData = self.skRCV()
-            answer = answerData.decode()
-            if(answer == 'yes'):
-                command = raw_input('Enter Admin Command: ')
-                if(command=='dir'):
-                    self.skSend(command.encode())
-                    answerData = self.skRCV()
-                    answer = answerData.decode()
-                    if(answer=='okay'):
-                        command = raw_input('Enter new server directory: ')
-                        self.skSend(command.encode())
-                        answerData = self.skRCV()
-                        answer = answerData.decode()
-                        if(answer == 'okay'):
-                            print('Directory changed')
-                        else:
-                            print('Directory error')
+        conf = self.skRCV()
+        if(conf.decode()=='authtoken'):
+            self.skSend(self.__admpass.encode())
+            conf = self.skRCV()
+            if(conf.decode()=='no'):
+                '''Bad Password'''
+                return 1
+            elif(conf.decode()=='yes'):
+                if(command == 'exit'):
+                    self.skSend('exit'.encode())
+                    self.skClose()
+                    return 0
+                elif(command == 'reset'):
+                    self.skSend('reset'.encode())
+                    self.skClose()
+                    return 0
+                elif(command == 'port'):
+                    self.skSend(('port&%&'+option).encode())
+                    self.skClose()
+                    self.__port = int(option)
+                    return 0
+                elif(command == 'conns'):
+                    self.skSend(('conns&%&'+option).encode())
+                    self.skClose()
+                    return 0
+                elif(command == 'dir'):
+                    self.skSend('dir'.encode())
+                    self.skClose()
+                    return 0
+                elif(command == 'stats'):
+                    self.skSend('stats'.encode())
+                    data = self.skRCV()
+                    tempList = data.decode()
+                    self.__serveriplist = tempList.split(',')
+                    self.__serveriplist.pop()
+                    self.skClose()
+#                     print(self.__serveriplist) POSSIBLE EXTRA INDEX
+                    return 0
                 else:
-                    print('No such command')
-            else:
-                print('Invalid Password')
-        else:
-            print('issue with admin request')
-        self.skClose()
+                    self.skSend('error'.encode())
+                    self.skClose()
+                    return 0
+                
+    def skCleanUp(self):
+        for x in self.__cache:
+            os.remove(self.__skFiles[x].cachePath)
         
 if __name__ == "__main__":
-    port = raw_input("Enter port:  ")
-    if(port!='default'):
-        port = int(port)
-        ip = raw_input("Enter IP:  ")
-        path = raw_input("Enter file directory path:  ")
-
-    if(port == 'default'):
-        ClientK = SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1');
-    else:
-        ClientK = SKClient(path,port,ip)
+#     port = raw_input("Enter port:  ")
+#     if(port!='default'):
+#         port = int(port)
+#         ip = raw_input("Enter IP:  ")
+#         path = raw_input("Enter file directory path:  ")
+# 
+#     if(port == 'default'):
+#         ClientK = SKClient("C:\\SoundFiles\\Client\\", 65535, '184.75.148.148');
+#     else:
+#         ClientK = SKClient(path,port,ip)
     #ClientK.connecter()
+    ClientK = SKClient("C:\\SoundFiles\\Client\\", 65535, '184.75.148.148', 10);
     while True:
         command = raw_input("Enter command: ")
-        ClientK.comSwitch(command);
+        ClientK.skUserComm(command);
         #command = raw_input("Enter Command")
 #         ClientK.connecter()
 #         ClientK.trueSend("'Pridemoor Keep' Shovel Knight Remix-k3IKgJUTjlM.mp3".encode())

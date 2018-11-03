@@ -32,6 +32,7 @@ class SKFile(object):
         else:
             self.album = ''
         self.index = index
+        self.cachePath = ''
         
     def skToString(self):
         '''
@@ -45,3 +46,7 @@ class SKFile(object):
         This method is the same above, but is the python overwrite in calling print()
         '''
         return self.path + " &%& " + str(self.index) + ' &%& ' + self.title +" &%& " + self.artist + " &%& " + self.album
+    
+    def skAddPath(self, path):
+        '''Method that adds a cache path to skFile for cache use'''
+        self.cachePath = path
