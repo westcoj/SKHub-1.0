@@ -18,7 +18,7 @@ class SKClient(object):
     '''
 
 
-    def __init__(self, path, port, ip, max):
+    def __init__(self, port, ip, max):
         '''
         SKCLient will be built with several methods all revolving the socket initialized within
         the constructor. (Unless a higher level communication method is chosen, further
@@ -323,18 +323,12 @@ class SKClient(object):
             os.remove(self.__skFiles[x].cachePath)
         
 if __name__ == "__main__":
-#     port = raw_input("Enter port:  ")
-#     if(port!='default'):
-#         port = int(port)
-#         ip = raw_input("Enter IP:  ")
-#         path = raw_input("Enter file directory path:  ")
-# 
-#     if(port == 'default'):
-#         ClientK = SKClient("C:\\SoundFiles\\Client\\", 65535, '184.75.148.148');
-#     else:
-#         ClientK = SKClient(path,port,ip)
-    #ClientK.connecter()
-    ClientK = SKClient("C:\\SoundFiles\\Client\\", 65535, '184.75.148.148', 10);
+    port = raw_input("Enter port:  ")
+    port = int(port)
+    ip = raw_input("Enter IP:  ")
+    cache = int(raw_input("Enter cache size:  "))
+    ClientK = SKClient(cache,port,ip)
+
     while True:
         command = raw_input("Enter command: ")
         ClientK.skUserComm(command);
