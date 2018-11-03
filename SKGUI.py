@@ -267,11 +267,12 @@ class SKGUI(wx.Panel):
         self.frame.Destroy()
             
     def skSetConnection(self,event):
-        self.skc = SKClient("C:\\SoundFiles\\Client\\", 65535, '184.75.148.148');
-        self.connected = self.skc.skOpen()
+        self.skc = SKClient("C:\\SoundFiles\\Client\\", self.__port, self.__host, self.__cacheMax);
+        val = self.skc.skOpen()
+        if(val==1):
+            wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
         self.skc.skClose()
         
-
     def skGetList(self, event):
         '''
         Method for updating default display list
@@ -285,7 +286,7 @@ class SKGUI(wx.Panel):
                 self.mediaDisplay.Append([x.title,x.artist,x.album])
                 self.mediaDisplay.SetItemData(i, int(x.index))
                 i+=1
-        check = self.mediaManager.skdbUpdateDefault(self.mediaList)
+#         check = self.mediaManager.skdbUpdateDefault(self.mediaList)
         
     def skListOption(self, event):
         '''
@@ -424,6 +425,8 @@ class SKGUI(wx.Panel):
 #             wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index],"ERROR",wx.ICON_EXCLAMATION|wx.OK)
             
         ###--------REPORT VERSION-------###
+        if(len(self.mediaList)<1):
+            return
         self.mediaPlayer.Stop()
         #Stop if final song
         if(self.playIndex == len(self.mediaList)-1):
