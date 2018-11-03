@@ -67,13 +67,12 @@ class SKGUI(wx.Panel):
                 self.__port = int(config['DEFAULT']['ServerPort'])
                 self.__pass = config['DEFAULT']['ConnectionPassword']
                 self.__admPass = config['DEFAULT']['AdminPassword']
-                self.__path = config['DEFAULT']['ClientDirectory']
                 self.__cacheMax = int(config['DEFAULT']['CacheMax'])
-                return SKClient(self.__path, self.__port, self.__host, self.__cacheMax)
+                return SKClient(self.__port, self.__host, self.__cacheMax)
             except Exception as e:
                 print(e)
                 defPath = os.path.join(dirName,'Music')
-                return SKClient(defPath, 1445, 'NOIP', 5)
+                return SKClient(1445, 'NOIP', 5)
 
         else:
             wx.MessageBox("Unable to load ini file, running start up.","ERROR",wx.ICON_EXCLAMATION|wx.OK)
@@ -93,14 +92,6 @@ class SKGUI(wx.Panel):
                         break
                     except:
                         wx.MessageBox("Enter a valid port","ERROR",wx.ICON_EXCLAMATION|wx.OK)
-                self.__path = self.skPopUpValue('Enter Download Directory', os.path.join(dirName,'Music'))
-                try:
-                    if not self.__path.endswith('\\'):
-                        self.__path = self.__path + '\\'
-                    if not os.path.isdir(self.__path):
-                        os.makedirs(self.__path)
-                except:
-                    pass
                 self.__cacheMax = self.skPopUpValue('Enter Maximum Cache Size', '5')
                 self.__pass = self.skPopUpValue('Connection Password', '')
                 self.__admPass = self.skPopUpValue('Enter Admin Password (if known)', '')
@@ -111,14 +102,13 @@ class SKGUI(wx.Panel):
                     config['DEFAULT']['ServerPort'] = str(self.__port)
                     config['DEFAULT']['ConnectionPassword'] = self.__pass
                     config['DEFAULT']['AdminPassword'] = self.__admPass
-                    config['DEFAULT']['ClientDirectory'] = self.__path
                     config['DEFAULT']['CacheMax'] = str(self.__cacheMax)
                     with open('sksettings.ini', 'w') as iniFile:
                         config.write(iniFile)
                 except Exception as e:
                     print(e)
                     print('Error making ini file')
-                return SKClient(self.__path, self.__port, self.__host, self.__cacheMax)
+                return SKClient(self.__port, self.__host, self.__cacheMax)
 
     def skPopUpValue(self, text, defValue):
         '''
@@ -267,7 +257,7 @@ class SKGUI(wx.Panel):
         self.frame.Destroy()
             
     def skSetConnection(self,event):
-        self.skc = SKClient("C:\\SoundFiles\\Client\\", self.__port, self.__host, self.__cacheMax);
+        self.skc = SKClient(self.__port, self.__host, self.__cacheMax);
         val = self.skc.skOpen()
         if(val==1):
             wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
