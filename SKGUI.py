@@ -32,6 +32,7 @@ class SKGUI(wx.Panel):
         mediaList keeps track of skFiles in the order they appear in the song display list. playIndex tracks the selection index of the list, so that
         next and previous commands can select 1 above or below that value from the mediaList.'
         '''
+        self.locale = wx.Locale(wx.LANGUAGE_ENGLISH)
         wx.Panel.__init__(self,parent=parent)
         self.mediaManager = SKMedia()
         self.frame = parent
