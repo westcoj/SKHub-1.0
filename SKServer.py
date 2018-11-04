@@ -13,7 +13,6 @@ from pip._vendor.distlib.compat import raw_input
 from tinytag import TinyTag
 from SKFile import SKFile
 import configparser
-import sys
 
 
 
@@ -41,7 +40,7 @@ class SKServer(object):
         dir: list of all songs in string format (For sending to client, probably not needed since skfiles have
          this capability)
         '''
-        self.__homeDir = os.path.dirname(os.path.realpath(__file__))
+        self.__homeDir = os.getcwd()
         self.__SS = socket.socket(socket.AF_INET,socket.SOCK_STREAM,0)
         self.__SS.settimeout(5)
         self.__hostname = socket.gethostbyname(gethostname())

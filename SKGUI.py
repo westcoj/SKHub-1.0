@@ -14,9 +14,7 @@ from SKFile import SKFile
 import configparser
 import ipaddress
 
-
-dirName = os.path.dirname(os.path.realpath(__file__))
-#HAS TO BE CHANGED LATER
+dirName = os.getcwd()
 bitmapDir = os.path.join(dirName,'bitmaps')
 class SKGUI(wx.Panel):
     '''
@@ -32,16 +30,15 @@ class SKGUI(wx.Panel):
         mediaList keeps track of skFiles in the order they appear in the song display list. playIndex tracks the selection index of the list, so that
         next and previous commands can select 1 above or below that value from the mediaList.'
         '''
-        self.locale = wx.Locale(wx.LANGUAGE_ENGLISH)
         wx.Panel.__init__(self,parent=parent)
         self.mediaManager = SKMedia()
         self.frame = parent
         self.currentVolume = 50
         self.createMenu()
-#         self.skSetConnection(wx.EVT_CATEGORY_ALL)
-        self.skc = self.skStartup() #SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')
+        self.skc = self.skStartup()
         self.createLayout()
         
+        self.locale = wx.Locale(wx.LANGUAGE_ENGLISH) #Apparently this helps Josh?
         sp = wx.StandardPaths.Get()
         self.currentFolder = sp.GetDocumentsDir()
         

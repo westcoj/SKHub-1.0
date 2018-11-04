@@ -38,8 +38,9 @@ class SKClient(object):
         self.__hostname = ip
         self.__port = port
         self.__dir = []
-        dirName = os.path.dirname(os.path.realpath(__file__))
-        self.__dirPath = os.path.join(dirName,'cache')
+#         dirName = os.path.dirname(os.path.realpath(__file__))
+        self.__dirname = os.getcwd()
+        self.__dirPath = os.path.join(self.__dirname,'cache')
         if not os.path.isdir(self.__dirPath):
             os.makedirs(self.__dirPath)
         self.__sockStat = False
@@ -76,7 +77,7 @@ class SKClient(object):
         '''
         
         self.__CS = socket(AF_INET,SOCK_STREAM)
-#         self.__CS.settimeout(200)
+        self.__CS.settimeout(5)
         try:
             self.__CS.connect((self.__hostname, self.__port))
             self.__sockStat = True

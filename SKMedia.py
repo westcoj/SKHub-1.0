@@ -27,7 +27,7 @@ class SKMedia(object):
         self.__list = [] 
         self.__cacheList = []
         self.__listIndex = 0
-        self.__dirName = os.path.dirname(os.path.realpath(__file__))
+        self.__dirName = os.getcwd()
         self.__plPath = os.path.join(self.__dirName, 'playlists')
         self.__dbPath = os.path.join(self.__dirName, 'playlists\\db.sqlite3')
         if not os.path.isdir(self.__plPath):
@@ -61,20 +61,19 @@ class SKMedia(object):
         UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         retList = []
-#         try:
-        con = sqlite3.connect(self.__dbPath)
-        cur = con.cursor()
-        getCom = ("SELECT path, songDex, title, artist, album FROM [%s]" % (self.skScrubName(name)))
-        cur.execute(getCom)
-        newList = cur.fetchall()
-        for x in newList:
-            skF = SKFile(x[0],x[1],x[2],x[3],x[4])
-            retList.append(skF)
-            
-        #retList 
-        return retList
-#         except:
-        return 0 #DB CONNECTION ERROR
+        try:
+            con = sqlite3.connect(self.__dbPath, timeout=3000.00)
+            cur = con.cursor()
+            getCom = ("SELECT path, songDex, title, artist, album FROM [%s]" % (self.skScrubName(name)))
+            cur.execute(getCom)
+            newList = cur.fetchall()
+            for x in newList:
+                skF = SKFile(x[0],x[1],x[2],x[3],x[4])
+                retList.append(skF)   
+            con.close()
+            return retList
+        except:
+            return 0 #DB CONNECTION ERROR
         
     def skdbGetAll(self):
         '''
@@ -88,6 +87,7 @@ class SKMedia(object):
             vals = cur.execute(getCom)
             for x in vals:
                 retList.append(x[0])
+            con.close()
             return retList
         except:
             return 0 #DB CONNECTION ERROR
