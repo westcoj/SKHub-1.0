@@ -140,7 +140,7 @@ class SKGUI(wx.Panel):
             # print(e)
             self.Destroy()
             self.skExitApp()
-            return
+            return 1
 
         self.playSlider = wx.Slider(self, size=wx.DefaultSize, style = wx.SL_HORIZONTAL)
         self.Bind(wx.EVT_SLIDER,self.onSeek,self.playSlider)
@@ -166,23 +166,30 @@ class SKGUI(wx.Panel):
             i+=1
             
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.skGetFile, self.mediaDisplay)
-        self.png = wx.StaticBitmap(self, bitmap=wx.Bitmap((os.path.join(bitmapDir, "sounderkin.png")), wx.BITMAP_TYPE_ANY), pos=(0,240))
+        self.logo = wx.StaticBitmap(self,
+                                    bitmap=wx.Bitmap((os.path.join(bitmapDir, "sounderkin.png")), wx.BITMAP_TYPE_ANY))
 
-        button = wx.Button(self, id=wx.ID_ANY, label='Hide List', pos=(220,250))
-        button.Bind(wx.EVT_BUTTON, self.onButton)
+        self.hideButton = wx.Button(self, id=wx.ID_ANY, label='Hide List')
+        self.hideButton.Bind(wx.EVT_BUTTON, self.onButton)
 
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         hSizer = wx.BoxSizer(wx.HORIZONTAL)
         audioSizer = self.buildAudioBar()
         topSizer = wx.BoxSizer(wx.HORIZONTAL)
+        leftSizer = wx.BoxSizer(wx.VERTICAL)
+        bottomSizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # layout widgets
-        mainSizer.Add(self.playSlider, 1, wx.ALL|wx.EXPAND, 5)
-        hSizer.Add(audioSizer, 0, wx.ALL|wx.CENTER, 5)
+        mainSizer.Add(self.playSlider, 1, wx.ALL | wx.EXPAND, 5)
+        hSizer.Add(audioSizer, 0, wx.ALL | wx.CENTER, 5)
         hSizer.Add(self.volumeCOP, 0, wx.ALL, 5)
+        bottomSizer.Add(self.logo, 1, wx.ALL | wx.EXPAND)
+        bottomSizer.Add(self.hideButton, 1, wx.ALL)
         mainSizer.Add(hSizer)
-        topSizer.Add(mainSizer)
-        topSizer.Add(self.mediaDisplay,1,wx.RIGHT|wx.EXPAND,5)
+        leftSizer.Add(mainSizer, wx.ALIGN_TOP)
+        leftSizer.Add(bottomSizer, wx.ALIGN_BOTTOM)
+        topSizer.Add(leftSizer)
+        topSizer.Add(self.mediaDisplay, 1, wx.RIGHT | wx.EXPAND, 5)
 
         self.SetSizer(topSizer)
         self.Layout()
@@ -192,10 +199,12 @@ class SKGUI(wx.Panel):
         button = event.GetEventObject()
         if button.GetLabel() == 'Show List':
             button.SetLabel('Hide List')
-            self.frame.SetSize(800,300)
+            self.mediaDisplay.Show()
+            self.frame.SetSize(800, 300)
         else:
             button.SetLabel('Show List')
-            self.frame.SetSize(315,300)
+            self.mediaDisplay.Hide()
+            self.frame.SetSize(335, 300)
 
 
     def buildAudioBar(self):
