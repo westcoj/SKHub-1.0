@@ -12,8 +12,7 @@ import ipaddress
 # for future use
 # import wx.lib.agw.aquabutton as AB
 
-dirName = os.path.dirname(os.path.realpath(__file__))
-#HAS TO BE CHANGED LATER
+dirName = os.getcwd()
 bitmapDir = os.path.join(dirName,'bitmaps')
 class SKGUI(wx.Panel):
     '''
@@ -65,13 +64,11 @@ class SKGUI(wx.Panel):
                 self.__port = int(config['DEFAULT']['ServerPort'])
                 self.__pass = config['DEFAULT']['ConnectionPassword']
                 self.__admPass = config['DEFAULT']['AdminPassword']
-                self.__path = config['DEFAULT']['ClientDirectory']
-                self.__cacheMax = int(config['DEFAULT']['CacheMax']) 
-                return SKClient(self.__path, self.__port, self.__host, self.__cacheMax)
+                self.__cacheMax = int(config['DEFAULT']['CacheMax']) - 1
+                return SKClient(self.__port, self.__host, self.__cacheMax)
             except Exception as e:
                 print(e)
-                defPath = os.path.join(dirName,'Music')
-                return SKClient(defPath, 1445, 'NOIP',5)
+                return SKClient(1445, 'NOIP',4)
 
         else:
             result = wx.MessageBox("Welcome to SounderKin!\nPlease estabhlish a conneciton...","Welcome",wx.ICON_QUESTION|wx.OK|wx.CANCEL)
@@ -91,15 +88,7 @@ class SKGUI(wx.Panel):
                         break
                     except:
                         wx.MessageBox("Enter a valid port","Port Number",wx.ICON_EXCLAMATION|wx.OK)
-                self.__path = self.skPopUpValue('Enter Download Directory', os.path.join(dirName,'Music'))
-                try:
-                    if not self.__path.endswith('\\'):
-                        self.__path = self.__path + '\\'
-                    if not os.path.isdir(self.__path):
-                        os.makedirs(self.__path)
-                except:
-                    pass
-                self.__cacheMax = self.skPopUpValue('Enter Maximum Cache Size', '5') 
+                self.__cacheMax = int(self.skPopUpValue('Enter Maximum Cache Size', '5')) - 1
                 self.__pass = self.skPopUpValue('Connection Password', '')
                 self.__admPass = self.skPopUpValue('Enter Admin Password (if known)', '')
                 try:
@@ -109,14 +98,13 @@ class SKGUI(wx.Panel):
                     config['DEFAULT']['ServerPort'] = str(self.__port)
                     config['DEFAULT']['ConnectionPassword'] = self.__pass
                     config['DEFAULT']['AdminPassword'] = self.__admPass
-                    config['DEFAULT']['ClientDirectory'] = self.__path
-                    config['DEFAULT']['CacheMax'] = str(self.__cacheMax)
+                    config['DEFAULT']['CacheMax'] = str(self.__cacheMax +1)
                     with open('sksettings.ini', 'w') as iniFile:
                         config.write(iniFile)
                 except Exception as e:
                     print(e)
                     print('Error making ini file')
-                return SKClient(self.__path, self.__port, self.__host, self.__cache)
+                return SKClient(self.__port, self.__host, self.__cacheMax)
             if result == wx.CANCEL:
                 #ENTER EXIT METHOD
                 return
@@ -281,18 +269,28 @@ class SKGUI(wx.Panel):
         self.frame.Destroy()
 
     def skSetConnection(self,event):
-        self.skc = SKClient("C:\\SoundFiles\\Client\\", self.__port, self.__host, self.__cacheMax);
+        '''
+        When user clicks connect from menu, should implement a window that allows a user to change settings at once.
+        On okay, would try a connection with the new options.
+        '''
+        
+        self.skc = SKClient(self.__port, self.__host, self.__cacheMax);
         self.connected = self.skc.skOpen()
         if(self.connected==1):
             wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+            return
         self.skc.skClose()
+        wx.MessageBox("Server Connection Verified","SUCCESS",wx.ICON_EXCLAMATION|wx.OK)
 
 
     def skGetList(self, event):
         '''
         Method for updating default display list
         '''
-        self.skc.skUserComm('update')
+        check = self.skc.skUserComm('update')
+        if(check==1):
+            wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+            return
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
         i = 0
@@ -301,7 +299,7 @@ class SKGUI(wx.Panel):
                 self.mediaDisplay.Append([x.title,x.artist,x.album])
                 self.mediaDisplay.SetItemData(i, int(x.index))
                 i+=1
-#         check = self.mediaManager.skdbUpdateDefault(self.mediaList)
+        self.mediaManager.skdbUpdateDefault(self.mediaList)
 
     def skListOption(self, event):
         '''
