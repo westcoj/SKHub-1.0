@@ -180,11 +180,10 @@ class SKClient(object):
                 except Exception as e:
                     print(e)
                     return 1
-            path = (self.__dirPath + '\\' + name)
-            file = open(path, 'wb+')        
+            path = self.__skFiles[index].cachePath
+            file = open(path, 'wb+')
             file.write(fileData);
             file.close();
-            self.__skFiles[index].skAddPath(path)
             if(len(self.__cache)>self.__cacheMax):
                 file = self.__cache.pop(0)
                 os.remove(self.__skFiles[file].cachePath)
@@ -220,7 +219,11 @@ class SKClient(object):
             self.__skFiles = []
             for x in self.__dir:
                 skFData = x.split('&%&')
+                #
                 skf = SKFile(skFData[0],skFData[1],skFData[2],skFData[3],skFData[4])
+                name = (skf.index + '.mp3')
+                path = (self.__dirPath + '\\' + name)
+                skf.skAddPath(path)
                 self.__skFiles.append(skf)
             self.skClose()
         elif(command == 'ls'):
@@ -238,8 +241,8 @@ class SKClient(object):
             self.skClose()
         elif(command == 'admin'):
             command = raw_input('Enter Command')
-            option = raw_input('Enter Option')
-            self.skAdminComm(command, option)
+            option = raw_input('Enter Option(s)')
+            self.skAdminComm(command, option, option2)
             return
         elif(command == 'stats'):
             val = self.skOpen()
@@ -260,7 +263,7 @@ class SKClient(object):
             sys.exit() #REMOVE LATER
 
                        
-    def skAdminComm(self, command, option):
+    def skAdminComm(self, command, option, option2):
         '''
         Method for handling admin tasks on server through client. Currently needs better password authentication
         should handle basic tasks for changing server settings
@@ -292,14 +295,10 @@ class SKClient(object):
                     self.skSend('reset'.encode())
                     self.skClose()
                     return 0
-                elif(command == 'port'):
-                    self.skSend(('port&%&'+option).encode())
+                elif(command == 'settings'):
+                    self.skSend(('settings%&'+option + '&%&' + option2).encode())
                     self.skClose()
                     self.__port = int(option)
-                    return 0
-                elif(command == 'conns'):
-                    self.skSend(('conns&%&'+option).encode())
-                    self.skClose()
                     return 0
                 elif(command == 'dir'):
                     self.skSend('dir'.encode())
@@ -321,7 +320,10 @@ class SKClient(object):
                 
     def skCleanUp(self):
         for x in self.__cache:
-            os.remove(self.__skFiles[x].cachePath)
+            try:
+                os.remove(self.__skFiles[x].cachePath)
+            except:
+                pass
         
 if __name__ == "__main__":
     port = raw_input("Enter port:  ")

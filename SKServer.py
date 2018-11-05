@@ -154,6 +154,7 @@ class SKServer(object):
         Main method of running the server, allowing connections from clients. Opens
         the server sockets and starts individual threads based on requests.
         '''
+
         try:
             self.__SS.listen(self.__conns)
             print('Server listening on port: ' + str(self.__port))
@@ -257,18 +258,12 @@ class SKServer(object):
         self.skSend('yes'.encode(), socket)
         commData = self.skRCV(socket)
         command = commData.decode().split('&%&')
-        if(command[0]=='port'):
+        if(command[0]=='settings'):
             'Change port, requires reset'
             portNum = int(command[1])
+            connsNum = int(command[2])
             self.__port=portNum
-            self.skUpdateINI()
-            self.__reset = 1
-            self.__exitVal = 1
-            return
-        elif(command[0]=='conns'):
-            'Change max number of connections, requires reset'
-            connNum = int(command[1])
-            self.__conns=connNum
+            self.__conns=connsNum
             self.skUpdateINI()
             self.__reset = 1
             self.__exitVal = 1

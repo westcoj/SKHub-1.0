@@ -36,13 +36,15 @@ class SKMedia(object):
         #self.skLoadList('default.pl')
         
          
-    def skShuffleList(self,listcon):
+    def skShuffleList(self,listcon, saveDex):
         '''
         Method for shuffling a list, shuffles the list in place so a copy
-        must be used. This is still used currently.
+        must be used. Keeps note of current index to place at top of shufflie list
         '''
         listCopy = listcon
+        saveFile = listCopy.pop(saveDex)
         random.shuffle(listCopy)
+        listCopy.insert(0,saveFile)
         return listCopy
             
     #----------------------------------------DB METHODS-------------------------#

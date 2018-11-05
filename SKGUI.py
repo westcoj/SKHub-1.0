@@ -35,17 +35,16 @@ class SKGUI(wx.Panel):
         self.currentVolume = 50
         self.createMenu()
         self.skc = self.skStartup() #SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')
-        self.createLayout()
-
-        sp = wx.StandardPaths.Get()
-        self.currentFolder = sp.GetDocumentsDir()
+        val = self.createLayout()
+        if val>0:
+            #Broken display
+            return;
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER,self.onTimer)
         self.frame.Bind(wx.EVT_CLOSE, self.skExitApp) 
         self.timer.Start(100)
         self.mediaList = []
-#         self.listDisplay = '' ###############################################
         self.playIndex = 0
 
     def skStartup(self):
@@ -107,7 +106,10 @@ class SKGUI(wx.Panel):
                 return SKClient(self.__port, self.__host, self.__cacheMax)
             if result == wx.CANCEL:
                 #ENTER EXIT METHOD
-                return
+                return 1
+
+    def skUpdateIni(self):
+        '''Method to update ini'''
 
     def skPopUpValue(self, text, defValue):
         '''
@@ -119,28 +121,26 @@ class SKGUI(wx.Panel):
         popup.Destroy()
         return value
 
-    def skTestServer(self):
-        '''
-        Later Method for making sure there is a valid connection
-        '''
-        check = self.skc.skOpen()
-        if(check == 0):
-            self.skc.skClose()
-            return True
-        else:
-            return False
-
     def createLayout(self):
         '''
         Create layout of GUI
+
+        The slider of the GUI needs an update as clicking on the bar doesn't move the slider to the
+        correct position. This can cause weird stuff when you click multiple times. This isn't a simple fix,
+        so I'd suggest starting here. This will be further complicated once we switch to streaming.
+
+        https://stackoverflow.com/questions/9961456/get-wxpython-sliders-value-under-mouse-click
         '''
         try:
             self.mediaPlayer = wx.media.MediaCtrl(self,style=wx.SIMPLE_BORDER, szBackend=wx.media.MEDIABACKEND_WMP10)
             self.Bind(wx.media.EVT_MEDIA_LOADED,self.loadPlay)
             self.mediaPlayer.Bind(wx.media.EVT_MEDIA_FINISHED, self.onNext, self.mediaPlayer)
 
-        except:
+        except Exception as e:
+            # print(e)
             self.Destroy()
+            self.skExitApp()
+            return
 
         self.playSlider = wx.Slider(self, size=wx.DefaultSize, style = wx.SL_HORIZONTAL)
         self.Bind(wx.EVT_SLIDER,self.onSeek,self.playSlider)
@@ -186,7 +186,7 @@ class SKGUI(wx.Panel):
 
         self.SetSizer(topSizer)
         self.Layout()
-
+        return 0
 
     def onButton(self, event):
         button = event.GetEventObject()
@@ -231,7 +231,9 @@ class SKGUI(wx.Panel):
         return audioBarSizer
 
     def buildBtn(self, btnDict, sizer):
-        """"""
+        '''
+        Check out wx.BitMap Button and combine with rest of build option
+        '''
         bmp = btnDict['bitmap']
         handler = btnDict['handler']
 
@@ -248,11 +250,12 @@ class SKGUI(wx.Panel):
         menubar = wx.MenuBar()
 
         fileMenu = wx.Menu()
-        conn_item = fileMenu.Append(wx.Window.NewControlId(), "&Connect","Connect to Server")
+        conn_item = fileMenu.Append(wx.Window.NewControlId(), "&New Connection","Connect to Server")
+        #conn_item = fileMenu.Append(wx.Window.NewControlId(), "&Settings","Change Settings")
         menubar.Append(fileMenu, '&File')
 
         mediaMenu = wx.Menu()
-        updateListItem = mediaMenu.Append(wx.Window.NewControlId(), "&Update", "Update Media Directory")
+        updateListItem = mediaMenu.Append(wx.Window.NewControlId(), "&Update Library", "Update Media Directory")
         listItem = mediaMenu.Append(wx.Window.NewControlId(), "&Playlists", "Create Playlist")
         shuffleItem = mediaMenu.Append(wx.Window.NewControlId(), '&Shuffle', 'Shuffle Current List')
         menubar.Append(mediaMenu, '&Media')
@@ -265,15 +268,30 @@ class SKGUI(wx.Panel):
         
     def skExitApp(self, event):
         '''Method runs when user hits close'''
-        self.skc.skCleanUp() #Remove Cache
         self.frame.Destroy()
+        self.skc.skCleanUp() #Remove Cache
+
 
     def skSetConnection(self,event):
         '''
-        When user clicks connect from menu, should implement a window that allows a user to change settings at once.
+        When user clicks connect from menu, a window that allows a user to change settings at once appears.
         On okay, would try a connection with the new options.
         '''
-        
+        dlg = NewConnection(parent = self)
+        dlg.ShowModal()
+        if dlg.resultip:
+            try:
+                ipaddress.ip_address(dlg.resultip)
+            except:
+                wx.MessageBox("Invalid IP", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+                return
+            self.__host = dlg.resultip
+            self.__port = int(dlg.resultport)
+        else:
+            dlg.Destroy()
+            return
+        dlg.Destroy()
+
         self.skc = SKClient(self.__port, self.__host, self.__cacheMax);
         self.connected = self.skc.skOpen()
         if(self.connected==1):
@@ -291,6 +309,8 @@ class SKGUI(wx.Panel):
         if(check==1):
             wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
             return
+        self.onStop(wx.EVT_BUTTON)
+        self.playIndex = 0
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
         i = 0
@@ -339,7 +359,7 @@ class SKGUI(wx.Panel):
         '''
         #----------------------REPORT VERSION----------------------#
         findDex = self.mediaList[self.playIndex]
-        tempList = self.mediaManager.skShuffleList(self.mediaList)
+        tempList = self.mediaManager.skShuffleList(self.mediaList, self.playIndex)
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
         i=0
@@ -348,10 +368,7 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.SetItemData(i, int(x.index))
             self.mediaList.append(x)
             i+=1
-        try:
-            self.playIndex = self.mediaList.index(findDex)
-        except ValueError:
-            self.playIndex = 0
+        self.playIndex = 0
 
     def skGetFile(self, event):
         '''
@@ -373,9 +390,10 @@ class SKGUI(wx.Panel):
             #Start current song over again
             if(self.currentSong == index): #skf.index):
 #                 self.loadMusic(self.skc.skGetPath() + self.skc.skGetDir()[index].path)
-                print(self.skc.skGetDir()[index].cachePath)
+#                 print(self.skc.skGetDir()[index].cachePath)
                 self.loadMusic(self.skc.skGetDir()[index].cachePath)
                 return
+        print('cachepath: ' + self.skc.skGetDir()[index].cachePath)
         val = self.skc.skGUIFILE(index)
         if val == 0:
             #continue
@@ -465,6 +483,8 @@ class SKGUI(wx.Panel):
     def onPrev(self, event):
         """
         Method that loads up the previous song, based on playlist order.
+
+        Here is where you could try media ctrl's length() command
         """
         #----------------------REPORT VERSION----------------------#
         self.mediaPlayer.Stop()
@@ -749,6 +769,32 @@ class SKEditFrame(wx.Frame):
         self.editDisplay.Clear()
         for x in self.skm.skdbGetList(self.editList):
             self.editDisplay.Append(x.title, x)
+
+#####################################################################################
+class NewConnection(wx.Dialog):
+    def __init__(self, parent):
+        wx.Dialog.__init__(self, parent, wx.ID_ANY, "Name Input", size=(650, 220))
+        self.panel = wx.Panel(self, wx.ID_ANY)
+        self.iplabel = wx.StaticText(self.panel, label="IP Address", pos=(20, 20))
+        self.ip = wx.TextCtrl(self.panel, value="", pos=(110, 20), size=(500, -1))
+        self.portlabel = wx.StaticText(self.panel, label="Port Number", pos=(20, 60))
+        self.port = wx.TextCtrl(self.panel, value="", pos=(110, 60), size=(500, -1))
+        self.saveButton = wx.Button(self.panel, label="OK", pos=(110, 160))
+        self.closeButton = wx.Button(self.panel, label="Cancel", pos=(210, 160))
+        self.saveButton.Bind(wx.EVT_BUTTON, self.skSaveConn)
+        self.closeButton.Bind(wx.EVT_BUTTON, self.OnQuit)
+        self.Bind(wx.EVT_CLOSE, self.OnQuit)
+        self.Show()
+
+    def OnQuit(self, event):
+        self.resultip = None
+        self.Destroy()
+
+    def skSaveConn(self, event):
+        self.resultip = self.ip.GetValue()
+        self.resultport = self.port.GetValue()
+        self.Destroy()
+
 #----------------------------------------------------------------------
 # Run the program
 if __name__ == "__main__":
