@@ -5,17 +5,20 @@ import wx.media
 import os
 from socket import gethostname, gethostbyname
 import wx.lib.buttons as buttons
-from SKClient import SKClient
+from SKHTTPClient import SKHTTPClient
 from SKMedia import SKMedia
 from SKFile import SKFile
 import configparser
 import http.client
 import ipaddress
+
 # for future use
 # import wx.lib.agw.aquabutton as AB
 
 dirName = os.getcwd()
-bitmapDir = os.path.join(dirName,'bitmaps')
+bitmapDir = os.path.join(dirName, 'bitmaps')
+
+
 class SKGUI(wx.Panel):
     '''
     Class meant to build and operate the GUI. Due to MediaCTRL's operation
@@ -26,53 +29,54 @@ class SKGUI(wx.Panel):
     def __init__(self, parent):
         '''
         Constructor
-        
-        mediaList keeps track of skFiles in the order they appear in the song display list. 
+
+        mediaList keeps track of skFiles in the order they appear in the song display list.
         playIndex tracks the selection index of the list, so that
         next and previous commands can select 1 above or below that value from the mediaList.'
         '''
-        wx.Panel.__init__(self,parent=parent)
+        wx.Panel.__init__(self, parent=parent)
         self.mediaManager = SKMedia()
         self.frame = parent
         self.currentVolume = 50
         self.createMenu()
-        self.skc = self.skStartup() #SKClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')
+        self.skc = self.skStartup()  # SKHTTPClient("C:\\SoundFiles\\Client\\", 1445, '127.0.0.1')
         val = self.createLayout()
-        if val>0:
-            #Broken display
+        if val > 0:
+            # Broken display
             return;
 
         self.timer = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER,self.onTimer)
-        self.frame.Bind(wx.EVT_CLOSE, self.skExitApp) 
+        self.Bind(wx.EVT_TIMER, self.onTimer)
+        self.frame.Bind(wx.EVT_CLOSE, self.skExitApp)
         self.timer.Start(100)
         self.mediaList = []
         self.playIndex = 0
+        self.uri = 'http://' + self.__host + ':' + str(self.__port) + '/'
 
     def skStartup(self):
         '''
         Method for either running setup wizard, or grabbing information from ini file.
-        Returns a created SKClient to use for connections.
+        Returns a created SKHTTPClient to use for connections.
         '''
 
         dirName = os.path.dirname(os.path.realpath(__file__))
-        if(os.path.isfile('sksettings.ini')):
-            #Process ini file
+        if (os.path.isfile('sksettings.ini')):
+            # Process ini file
             try:
                 config = configparser.ConfigParser()
                 config.read('sksettings.ini')
                 self.__host = config['DEFAULT']['ServerIP']
                 self.__port = int(config['DEFAULT']['ServerPort'])
-                self.__pass = config['DEFAULT']['ConnectionPassword']
-                self.__admPass = config['DEFAULT']['AdminPassword']
-                self.__cacheMax = int(config['DEFAULT']['CacheMax']) - 1
-                return SKClient(self.__port, self.__host, self.__cacheMax)
+                # self.__pass = config['DEFAULT']['ConnectionPassword']
+                # self.__admPass = config['DEFAULT']['AdminPassword']
+                return SKHTTPClient(self.__port, self.__host)
             except Exception as e:
-                print(e)
-                return SKClient(1445, 'NOIP',4)
+                wx.MessageBox('Issue with INI file, please set connection', 'INI File', wx.ICON_EXCLAMATION)
+                return SKHTTPClient(80, '127.0.0.1')
 
         else:
-            result = wx.MessageBox("Welcome to SounderKin!\nPlease estabhlish a conneciton...","Welcome",wx.ICON_QUESTION|wx.OK|wx.CANCEL)
+            result = wx.MessageBox("Welcome to SounderKin!\nPlease estabhlish a conneciton...", "Welcome",
+                                   wx.ICON_QUESTION | wx.OK | wx.CANCEL)
             while result == wx.OK:
                 while result == wx.OK:
                     '''Get IP'''
@@ -81,33 +85,30 @@ class SKGUI(wx.Panel):
                         ipaddress.ip_address(self.__host)
                         break
                     except:
-                        wx.MessageBox("Enter a valid IP address","IP Address",wx.ICON_EXCLAMATION|wx.OK)
+                        wx.MessageBox("Enter a valid IP address", "IP Address", wx.ICON_EXCLAMATION | wx.OK)
                 while True:
                     '''Get Port'''
                     try:
-                        self.__port = int(self.skPopUpValue('Enter Server Port', '65535'))
+                        self.__port = int(self.skPopUpValue('Enter Server Port', '80'))
                         break
                     except:
-                        wx.MessageBox("Enter a valid port","Port Number",wx.ICON_EXCLAMATION|wx.OK)
-                self.__cacheMax = int(self.skPopUpValue('Enter Maximum Cache Size', '5')) - 1
-                self.__pass = self.skPopUpValue('Connection Password', '')
-                self.__admPass = self.skPopUpValue('Enter Admin Password (if known)', '')
+                        wx.MessageBox("Enter a valid port", "Port Number", wx.ICON_EXCLAMATION | wx.OK)
+                # self.__pass = self.skPopUpValue('Connection Password', '')
+                # self.__admPass = self.skPopUpValue('Enter Admin Password (if known)', '')
                 try:
                     config = configparser.ConfigParser()
                     config['DEFAULT'] = {}
                     config['DEFAULT']['ServerIP'] = self.__host
                     config['DEFAULT']['ServerPort'] = str(self.__port)
-                    config['DEFAULT']['ConnectionPassword'] = self.__pass
-                    config['DEFAULT']['AdminPassword'] = self.__admPass
-                    config['DEFAULT']['CacheMax'] = str(self.__cacheMax +1)
+                    # config['DEFAULT']['ConnectionPassword'] = self.__pass
+                    # config['DEFAULT']['AdminPassword'] = self.__admPass
                     with open('sksettings.ini', 'w') as iniFile:
                         config.write(iniFile)
                 except Exception as e:
-                    print(e)
-                    print('Error making ini file')
-                return SKClient(self.__port, self.__host, self.__cacheMax)
+                    wx.MessageBox('Issue with INI file, please set connection', 'INI File', wx.ICON_EXCLAMATION)
+                return SKHTTPClient(self.__port, self.__host)
             if result == wx.CANCEL:
-                #ENTER EXIT METHOD
+                # ENTER EXIT METHOD
                 return 1
 
     def skUpdateIni(self):
@@ -117,7 +118,7 @@ class SKGUI(wx.Panel):
         '''
         Method that generates a pop up dialog box for errors
         '''
-        popup = wx.TextEntryDialog(None, text, value = defValue)
+        popup = wx.TextEntryDialog(None, text, value=defValue)
         popup.ShowModal()
         value = popup.GetValue()
         popup.Destroy()
@@ -134,10 +135,9 @@ class SKGUI(wx.Panel):
         https://stackoverflow.com/questions/9961456/get-wxpython-sliders-value-under-mouse-click
         '''
         try:
-            self.mediaPlayer = wx.media.MediaCtrl(self,style=wx.SIMPLE_BORDER, szBackend=wx.media.MEDIABACKEND_WMP10)
-            self.Bind(wx.media.EVT_MEDIA_LOADED,self.loadPlay)
+            self.mediaPlayer = wx.media.MediaCtrl(self, style=wx.SIMPLE_BORDER, szBackend=wx.media.MEDIABACKEND_WMP10)
+            self.Bind(wx.media.EVT_MEDIA_LOADED, self.loadPlay)
             self.mediaPlayer.Bind(wx.media.EVT_MEDIA_FINISHED, self.onNext, self.mediaPlayer)
-            self.Bind(wx.media.EVT_MEDIA_STOP, self.skCheckMedia, self.mediaPlayer)
 
         except Exception as e:
             # print(e)
@@ -145,29 +145,29 @@ class SKGUI(wx.Panel):
             self.skExitApp()
             return 1
 
-        self.playSlider = wx.Slider(self, size=wx.DefaultSize, style = wx.SL_HORIZONTAL)
-        self.Bind(wx.EVT_SLIDER,self.onSeek,self.playSlider)
+        self.playSlider = wx.Slider(self, size=wx.DefaultSize, style=wx.SL_HORIZONTAL)
+        self.Bind(wx.EVT_SLIDER, self.onSeek, self.playSlider)
 
-        #self.txt = wx.StaticText(self, label = 'SongTitle',style = wx.ALIGN_CENTER,pos=(125,200))
-        #self.txt1 = wx.StaticText(self, label = 'SongArtist', style = wx.ALIGN_CENTER)
+        # self.txt = wx.StaticText(self, label = 'SongTitle',style = wx.ALIGN_CENTER,pos=(125,200))
+        # self.txt1 = wx.StaticText(self, label = 'SongArtist', style = wx.ALIGN_CENTER)
 
-        self.volumeCOP = wx.Slider(self, style=wx.SL_VERTICAL|wx.SL_INVERSE)
+        self.volumeCOP = wx.Slider(self, style=wx.SL_VERTICAL | wx.SL_INVERSE)
         self.volumeCOP.SetRange(0, 100)
         self.volumeCOP.SetValue(self.currentVolume)
         self.volumeCOP.Bind(wx.EVT_SLIDER, self.onSetVolume)
 
-        self.mediaDisplay = wx.ListCtrl(self, size=(-1,450), style = wx.LC_REPORT|wx.LC_SINGLE_SEL)
-        self.mediaDisplay.InsertColumn(0 ,'Song',width = 150)
-        self.mediaDisplay.InsertColumn(1 ,'Artist',width = 150)
-        self.mediaDisplay.InsertColumn(2 ,'Album',width = 150)
+        self.mediaDisplay = wx.ListCtrl(self, size=(-1, 450), style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        self.mediaDisplay.InsertColumn(0, 'Song', width=150)
+        self.mediaDisplay.InsertColumn(1, 'Artist', width=150)
+        self.mediaDisplay.InsertColumn(2, 'Album', width=150)
 
-        i=0
-        for x in self.skc.skGetDir():
+        i = 0
+        for x in self.skc.skGetFileDir():
             self.mediaList.append(x)
-            self.mediaDisplay.Append([x.title,x.artist,x.album])
+            self.mediaDisplay.Append([x.title, x.artist, x.album])
             self.mediaDisplay.SetItemData(i, int(x.index))
-            i+=1
-            
+            i += 1
+
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.skGetFile, self.mediaDisplay)
         self.logo = wx.StaticBitmap(self,
                                     bitmap=wx.Bitmap((os.path.join(bitmapDir, "sounderkin.png")), wx.BITMAP_TYPE_ANY))
@@ -209,21 +209,20 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.Hide()
             self.frame.SetSize(335, 300)
 
-
     def buildAudioBar(self):
         """
         Builds the audio bar controls
         """
         audioBarSizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.buildBtn({'bitmap':'prev.png', 'handler':self.onPrev,
-                       'name':'prev'},
+        self.buildBtn({'bitmap': 'prev.png', 'handler': self.onPrev,
+                       'name': 'prev'},
                       audioBarSizer)
 
         # create play/pause toggle button
         img = wx.Bitmap(os.path.join(bitmapDir, "play.png"))
         self.playPauseBtn = buttons.GenBitmapToggleButton(self, bitmap=img, name="play")
-        #self.playPauseBtn = AB.AquaButton(self, bitmap=img)
+        # self.playPauseBtn = AB.AquaButton(self, bitmap=img)
         self.playPauseBtn.Enable(False)
 
         img = wx.Bitmap(os.path.join(bitmapDir, "pause.png"))
@@ -233,10 +232,10 @@ class SKGUI(wx.Panel):
         self.playPauseBtn.Bind(wx.EVT_BUTTON, self.onPlay)
         audioBarSizer.Add(self.playPauseBtn, 0, wx.LEFT, 3)
 
-        btnData = [{'bitmap':'stop.png',
-                    'handler':self.onStop, 'name':'stop'},
-                    {'bitmap':'next.png',
-                     'handler':self.onNext, 'name':'next'}]
+        btnData = [{'bitmap': 'stop.png',
+                    'handler': self.onStop, 'name': 'stop'},
+                   {'bitmap': 'next.png',
+                    'handler': self.onNext, 'name': 'next'}]
         for btn in btnData:
             self.buildBtn(btn, audioBarSizer)
 
@@ -262,8 +261,8 @@ class SKGUI(wx.Panel):
         menubar = wx.MenuBar()
 
         fileMenu = wx.Menu()
-        conn_item = fileMenu.Append(wx.Window.NewControlId(), "&New Connection","Connect to Server")
-        #conn_item = fileMenu.Append(wx.Window.NewControlId(), "&Settings","Change Settings")
+        conn_item = fileMenu.Append(wx.Window.NewControlId(), "&New Connection", "Connect to Server")
+        # conn_item = fileMenu.Append(wx.Window.NewControlId(), "&Settings","Change Settings")
         menubar.Append(fileMenu, '&File')
 
         mediaMenu = wx.Menu()
@@ -277,19 +276,17 @@ class SKGUI(wx.Panel):
         self.frame.Bind(wx.EVT_MENU, self.skGetList, updateListItem)
         self.frame.Bind(wx.EVT_MENU, self.skListOption, listItem)
         self.frame.Bind(wx.EVT_MENU, self.skShuffleList, shuffleItem)
-        
+
     def skExitApp(self, event):
         '''Method runs when user hits close'''
         self.frame.Destroy()
-        self.skc.skCleanUp() #Remove Cache
 
-
-    def skSetConnection(self,event):
+    def skSetConnection(self, event):
         '''
         When user clicks connect from menu, a window that allows a user to change settings at once appears.
         On okay, would try a connection with the new options.
         '''
-        dlg = NewConnection(parent = self)
+        dlg = NewConnection(parent=self)
         dlg.ShowModal()
         if dlg.resultip:
             try:
@@ -304,33 +301,31 @@ class SKGUI(wx.Panel):
             return
         dlg.Destroy()
 
-        self.skc = SKClient(self.__port, self.__host, self.__cacheMax);
-        self.connected = self.skc.skOpen()
-        if(self.connected==1):
-            wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+        self.skc = SKHTTPClient(self.__port, self.__host);
+        self.connected = self.skc.skTestConnection()
+        if (self.connected == 1):
+            wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
-        self.skc.skClose()
-        wx.MessageBox("Server Connection Verified","SUCCESS",wx.ICON_EXCLAMATION|wx.OK)
-
+        wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
 
     def skGetList(self, event):
         '''
         Method for updating default display list
         '''
-        check = self.skc.skUserComm('update')
-        if(check==1):
-            wx.MessageBox("Unable to connect to server, check settings","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+        check = self.skc.skBuildDir()
+        if (check == 1):
+            wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         self.onStop(wx.EVT_BUTTON)
         self.playIndex = 0
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
         i = 0
-        for x in self.skc.skGetDir():
-                self.mediaList.append(x)
-                self.mediaDisplay.Append([x.title,x.artist,x.album])
-                self.mediaDisplay.SetItemData(i, int(x.index))
-                i+=1
+        for x in self.skc.skGetFileDir():
+            self.mediaList.append(x)
+            self.mediaDisplay.Append([x.title, x.artist, x.album])
+            self.mediaDisplay.SetItemData(i, int(x.index))
+            i += 1
         self.mediaManager.skdbUpdateDefault(self.mediaList)
 
     def skListOption(self, event):
@@ -344,18 +339,18 @@ class SKGUI(wx.Panel):
         '''
         Method that loads a play list from manager
         '''
-        #----------------------REPORT VERSION----------------------#
+        # ----------------------REPORT VERSION----------------------#
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
-        if(name == 'Library'):
+        if (name == 'Library'):
             name = 'defPlaylist'
-        i=0
+        i = 0
         vals = self.mediaManager.skdbGetList(name)
         for x in vals:
             self.mediaList.append(x)
-            self.mediaDisplay.Append([x.title,x.artist,x.album])
+            self.mediaDisplay.Append([x.title, x.artist, x.album])
             self.mediaDisplay.SetItemData(i, int(x.index))
-            i+=1
+            i += 1
         self.playIndex = 0
 
     def skSortList(self, event):
@@ -363,23 +358,22 @@ class SKGUI(wx.Panel):
         Method that handles list sort based on header clicked
         Please implement once display method is chosen.
         '''
-            
-            
+
     def skShuffleList(self, event):
         '''
         Method that shuffles currently selected list
         '''
-        #----------------------REPORT VERSION----------------------#
+        # ----------------------REPORT VERSION----------------------#
         findDex = self.mediaList[self.playIndex]
         tempList = self.mediaManager.skShuffleList(self.mediaList, self.playIndex)
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
-        i=0
+        i = 0
         for x in tempList:
-            self.mediaDisplay.Append([x.title,x.artist,x.album])
+            self.mediaDisplay.Append([x.title, x.artist, x.album])
             self.mediaDisplay.SetItemData(i, int(x.index))
             self.mediaList.append(x)
-            i+=1
+            i += 1
         self.playIndex = 0
 
     def skGetFile(self, event):
@@ -387,77 +381,94 @@ class SKGUI(wx.Panel):
         Method for downloading a music file, upon finishing download, play music
         '''
         indexSKF = self.mediaDisplay.GetItemData(event.GetIndex())
-        self.playIndex = self.mediaDisplay.GetFocusedItem()#self.mediaDisplay.GetSelection()
-        #Song's unique index
+        self.playIndex = self.mediaDisplay.GetFocusedItem()  # self.mediaDisplay.GetSelection()
+        # Song's unique index
         self.playIndex = self.mediaDisplay.GetFocusedItem()
         index = int(indexSKF)
         try:
-            #Has a song been played yet, avoid attempted load of current song
+            # Has a song been played yet, avoid attempted load of current song
             self.currentSong
         except AttributeError:
             cs = False
         else:
-            cs = True 
-        if(cs):
-            #Start current song over again
-            if(self.currentSong == index): #skf.index):
-#                 self.loadMusic(self.skc.skGetPath() + self.skc.skGetDir()[index].path)
-#                 print(self.skc.skGetDir()[index].cachePath)
-                self.loadMusic(self.skc.skGetDir()[index].cachePath)
+            cs = True
+        if (cs):
+            # Start current song over again
+            if (self.currentSong == index):  # skf.index):
+                self.loadMusic(self.skc.skGetFileDir()[index].path)
                 return
-        # print('cachepath: ' + self.skc.skGetDir()[index].cachePath)
-        val = self.skc.skGUIFILE(index)
-        if val == 0:
-            #continue
-            self.loadMusic(self.skc.skGetDir()[index].cachePath)
-            self.currentSong = index
-        else:
-            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title,"ERROR",wx.ICON_EXCLAMATION|wx.OK)
+        # if val == 0:
+            # continue
+        # In future use HEAD to confirm file exists before loading
+        self.loadMusic(self.skc.skGetFileDir()[index].path)
+        self.currentSong = index
+        # else:
+            # wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",
+            #               wx.ICON_EXCLAMATION | wx.OK)
 
-    def loadMusic(self, musicFile):
+    def loadMusic(self, musicPath):
         """
         Load the music into the MediaCtrl or display an error dialog
         if the user tries to load an unsupported file type
         """
-        if not self.mediaPlayer.Load(musicFile):
+        request = self.uri + musicPath
+        print(request)
+        if not self.mediaPlayer.LoadURI(request):
             wx.MessageBox("Unable to load %s: Unsupported format?" % musicFile,
                           "ERROR",
                           wx.ICON_ERROR | wx.OK)
         else:
             self.mediaPlayer.SetInitialSize()
             self.GetSizer().Layout()
-            self.playSlider.SetRange(0, float(self.mediaList[self.playIndex].time))
+            self.playSlider.SetRange(0, self.mediaList[self.playIndex].time * 1000)
+            # self.playSlider.SetRange(0, self.mediaPlayer.Length())
             self.playPauseBtn.Enable(True)
-
 
     def onNext(self, event):
         """
         Method that selects next song from list, or stops if end of list is reached.
         """
-        #----------------------REPORT VERSION----------------------#
-        if(len(self.mediaList)<1):
+        # ----------------------REPORT VERSION----------------------#
+        if (len(self.mediaList) < 1):
             return
         self.mediaPlayer.Stop()
-        #Stop if final song
-        if(self.playIndex == len(self.mediaList)-1):
+        # Stop if final song
+        if (self.playIndex == len(self.mediaList) - 1):
             self.onStop(wx.EVT_CATEGORY_ALL)
             return
-        #Get song after current song, playIndex tracks index in the playlist, in case the selection is moved, 
-        #But a new song is not chosen.
+        # Get song after current song, playIndex tracks index in the playlist, in case the selection is moved,
+        # But a new song is not chosen.
 
         index = self.mediaDisplay.GetItemData(self.playIndex + 1)
-        val = self.skc.skGUIFILE(index)
-        if val == 0:
-            #continue
-            loadFile = self.skc.skGetDir()[index]
-#             self.loadMusic(self.mediaList[self.playIndex + 1].cachePath)
-            self.loadMusic(loadFile.cachePath)
-            self.mediaDisplay.Select(self.playIndex + 1, True)
-            self.mediaDisplay.SetItemState(self.playIndex+1, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
-            self.currentSong=index
-            self.playIndex+=1
-        else:
-            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title,"ERROR",wx.ICON_EXCLAMATION|wx.OK)
+        # Potential use of HEAD request to confirm file's existence before loading
+        self.loadMusic(self.skc.skGetFileDir()[index].path)
+        self.mediaDisplay.Select(self.playIndex + 1, True)
+        self.mediaDisplay.SetItemState(self.playIndex + 1, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
+        self.currentSong = index
+        self.playIndex += 1
+        # else:
+        #     wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",
+        #                   wx.ICON_EXCLAMATION | wx.OK)
+
+    def onPrev(self, event):
+        """
+        Method that loads up the previous song, based on playlist order.
+
+        Here is where you could try media ctrl's length() command
+        """
+        # ----------------------REPORT VERSION----------------------#
+        self.mediaPlayer.Stop()
+        if (self.playIndex == 0):
+            self.onStop(wx.EVT_CATEGORY_ALL)
+            return
+        index = self.mediaDisplay.GetItemData(self.playIndex - 1)
+        self.loadMusic(self.skc.skGetFileDir()[index].path)
+        self.mediaDisplay.Select(self.playIndex - 1, True)
+        self.currentSong = index
+        self.playIndex -= 1
+        # else:
+        #     wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index], "ERROR",
+        #                   wx.ICON_EXCLAMATION | wx.OK)
 
     def onPause(self):
         self.mediaPlayer.Pause()
@@ -477,7 +488,8 @@ class SKGUI(wx.Panel):
         else:
             self.mediaPlayer.SetInitialSize()
             self.GetSizer().Layout()
-            self.playSlider.SetRange(0, self.mediaPlayer.Length())
+            self.playSlider.SetRange(0, self.mediaList[self.playIndex].time * 1000)
+            # self.playSlider.SetRange(0, self.mediaPlayer.Length())
 
         event.Skip()
 
@@ -485,46 +497,22 @@ class SKGUI(wx.Panel):
         '''
         Method that plays the loaded music automatically
         '''
-        print('oh right')
         self.mediaPlayer.Play()
         self.mediaPlayer.SetInitialSize()
         self.GetSizer().Layout()
-        self.playSlider.SetRange(0, self.mediaPlayer.Length())
+        self.playSlider.SetRange(0, self.mediaList[self.playIndex].time*1000)
+        # self.playSlider.SetRange(0, self.mediaPlayer.Length())
         self.playPauseBtn.SetValue(True)
 
     def skCheckMedia(self, event):
-        print('hello')
         index = self.mediaDisplay.GetItemData(self.playIndex)
         songMax = self.mediaList[index].time
         currentTime = self.mediaPlayer.Length()
         print('songMax ' + str(songMax))
         print('currentTime: ' + str(currentTime))
-        if(float(songMax)>float(currentTime)):
+        if (float(songMax) > float(currentTime)):
             event.Veto()
 
-    def onPrev(self, event):
-        """
-        Method that loads up the previous song, based on playlist order.
-
-        Here is where you could try media ctrl's length() command
-        """
-        #----------------------REPORT VERSION----------------------#
-        self.mediaPlayer.Stop()
-        if(self.playIndex == 0):
-            self.onStop(wx.EVT_CATEGORY_ALL)
-            return
-        index = self.mediaDisplay.GetItemData(self.playIndex - 1)
-        val = self.skc.skGUIFILE(index)
-#         print(self.skc.skGetPath() + self.mediaList[index])
-        if val == 0:
-            #continue
-            loadFile = self.skc.skGetDir()[index]
-            self.loadMusic(loadFile.cachePath)
-            self.mediaDisplay.Select(self.playIndex - 1, True)
-            self.currentSong=index
-            self.playIndex -= 1
-        else:
-            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index],"ERROR",wx.ICON_EXCLAMATION|wx.OK)
 
     def onSeek(self, event):
         """
@@ -539,7 +527,7 @@ class SKGUI(wx.Panel):
         Sets the volume of the music player
         """
         self.currentVolume = self.volumeCOP.GetValue()
-        self.mediaPlayer.SetVolume(float(self.currentVolume/100))
+        self.mediaPlayer.SetVolume(float(self.currentVolume / 100))
 
     def onStop(self, event):
         """
@@ -555,65 +543,69 @@ class SKGUI(wx.Panel):
         offset = self.mediaPlayer.Tell()
         self.playSlider.SetValue(offset)
 
+
 ########################################################################
 class MediaFrame(wx.Frame):
     def __init__(self):
-        setSize = (800,300)
+        setSize = (800, 300)
         wx.Frame.__init__(self, None, wx.ID_ANY, "SounderKin 0.2", size=setSize)
         panel = SKGUI(self)
 
         self.logo = wx.Icon(wx.Bitmap((os.path.join(bitmapDir, "logo.ico")), wx.BITMAP_TYPE_ANY))
         self.SetIcon(self.logo)
 
+
 ########################################################################
 class SKListFrame(wx.Frame):
     '''
     Class for secondary GUI that manages playlist loading and creation
     '''
+
     def __init__(self, skm, parent):
         '''
         Gets passed the list of playlists?
         '''
         self.skm = skm
-        wx.Frame.__init__(self,None,title='Playlist Management', size=(400,300))
+        wx.Frame.__init__(self, None, title='Playlist Management', size=(400, 300))
         self.panel = wx.Panel(self)
-        #Create List Display
-        self.mediaDisplay = wx.ListBox(self.panel, size=(75,150),style=wx.LB_HSCROLL, choices = [])
+        # Create List Display
+        self.mediaDisplay = wx.ListBox(self.panel, size=(75, 150), style=wx.LB_HSCROLL, choices=[])
         self.mediaDisplay.Bind(wx.EVT_LISTBOX_DCLICK,
-                               lambda event: parent.skLoadList(event, self.mediaDisplay.GetString(self.mediaDisplay.GetSelection())),
-                                self.mediaDisplay)
+                               lambda event: parent.skLoadList(event, self.mediaDisplay.GetString(
+                                   self.mediaDisplay.GetSelection())),
+                               self.mediaDisplay)
         self.refresh()
-        self.newBtn = wx.Button(self.panel,label='New Playlist')
-        self.newBtn.Bind(wx.EVT_BUTTON,self.newList)
-        self.editBtn = wx.Button(self.panel,label='Edit Playlist')
-        self.editBtn.Bind(wx.EVT_BUTTON,self.editList)
-        self.dlBtn = wx.Button(self.panel,label='Delete Playlist')
-        self.dlBtn.Bind(wx.EVT_BUTTON,self.delList)
+        self.newBtn = wx.Button(self.panel, label='New Playlist')
+        self.newBtn.Bind(wx.EVT_BUTTON, self.newList)
+        self.editBtn = wx.Button(self.panel, label='Edit Playlist')
+        self.editBtn.Bind(wx.EVT_BUTTON, self.editList)
+        self.dlBtn = wx.Button(self.panel, label='Delete Playlist')
+        self.dlBtn.Bind(wx.EVT_BUTTON, self.delList)
 
         font = wx.Font(12, wx.ROMAN, wx.ITALIC, wx.NORMAL)
-        lbl1 = wx.StaticText(self.panel,-1,style=wx.ALIGN_CENTER)
+        lbl1 = wx.StaticText(self.panel, -1, style=wx.ALIGN_CENTER)
         lbl1.SetFont(font)
         lbl1.SetLabel('Playlist')
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         btnSizer = wx.BoxSizer(wx.HORIZONTAL)
-        btnSizer.Add(self.newBtn,0,wx.ALL|wx.LEFT,5)
-        btnSizer.Add(self.dlBtn,0,wx.ALL|wx.RIGHT,5)
-        btnSizer.Add(self.editBtn,0,wx.ALL|wx.CENTER,5)
+        btnSizer.Add(self.newBtn, 0, wx.ALL | wx.LEFT, 5)
+        btnSizer.Add(self.dlBtn, 0, wx.ALL | wx.RIGHT, 5)
+        btnSizer.Add(self.editBtn, 0, wx.ALL | wx.CENTER, 5)
 
-        sizer.Add(lbl1,0,wx.ALL,5)
-        sizer.Add(self.mediaDisplay, 0,wx.ALL|wx.EXPAND,5)
+        sizer.Add(lbl1, 0, wx.ALL, 5)
+        sizer.Add(self.mediaDisplay, 0, wx.ALL | wx.EXPAND, 5)
         sizer.Add(btnSizer)
         self.panel.SetSizer(sizer)
 
-    def newList(self,event):
-        dlg = wx.TextEntryDialog(self,'Enter List Name', 'Name Playlist')
+    def newList(self, event):
+        dlg = wx.TextEntryDialog(self, 'Enter List Name', 'Name Playlist')
         dlg.SetValue('NewList')
         if dlg.ShowModal() == wx.ID_OK:
             val = self.skm.skdbNewList(dlg.GetValue())
             if val == 1:
                 ''' Error Report '''
-                wx.MessageBox("Issue creating list","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+                wx.MessageBox("Issue creating list", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
 
         dlg.Destroy()
         self.refresh()
@@ -621,8 +613,8 @@ class SKListFrame(wx.Frame):
     def delList(self, event):
         plName = self.mediaDisplay.GetString(self.mediaDisplay.GetSelection())
         print(plName)
-        if(plName == 'Library'):
-            wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+        if (plName == 'Library'):
+            wx.MessageBox("DONT DO THAT", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         self.skm.skdbRemoveList(plName)
         self.refresh()
@@ -630,9 +622,9 @@ class SKListFrame(wx.Frame):
     def refresh(self):
         self.mediaDisplay.Clear()
         for x in self.skm.skdbGetAll():
-            if(x=='_defPlaylist_OLD'):
+            if (x == '_defPlaylist_OLD'):
                 pass
-            elif(x=='defPlaylist'):
+            elif (x == 'defPlaylist'):
                 self.mediaDisplay.Append('Library')
             else:
                 self.mediaDisplay.Append(x)
@@ -643,11 +635,13 @@ class SKListFrame(wx.Frame):
 
         Will require yet another frame
         '''
-        if(self.mediaDisplay.GetString(self.mediaDisplay.GetSelection())=='Library'):
-            wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
+        if (self.mediaDisplay.GetString(self.mediaDisplay.GetSelection()) == 'Library'):
+            wx.MessageBox("DONT DO THAT", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         secondFrame = SKEditFrame(self.skm, self.mediaDisplay.GetString(self.mediaDisplay.GetSelection()))
         secondFrame.Show()
+
+
 ########################################################################
 class SKEditFrame(wx.Frame):
     '''
@@ -660,41 +654,41 @@ class SKEditFrame(wx.Frame):
         '''
         self.editList = editList
         self.skm = skm
-        wx.Frame.__init__(self,None,title='Playlist Management', size=(725,400))
+        wx.Frame.__init__(self, None, title='Playlist Management', size=(725, 400))
         self.panel = wx.Panel(self)
 
-        #Playlist choice display
-        self.mediaDisplay = wx.ListBox(self.panel, size=(200,300),style=wx.LB_HSCROLL, choices = [])
+        # Playlist choice display
+        self.mediaDisplay = wx.ListBox(self.panel, size=(200, 300), style=wx.LB_HSCROLL, choices=[])
         for x in self.skm.skdbGetAll():
-            if(x=='_defPlaylist_OLD' or x==editList):
+            if (x == '_defPlaylist_OLD' or x == editList):
                 pass
-            elif(x=='defPlaylist'):
+            elif (x == 'defPlaylist'):
                 self.mediaDisplay.Append('Library')
             else:
                 self.mediaDisplay.Append(x)
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.chooseList, self.mediaDisplay)
 
-        #Create songs list display
-        self.songDisplay = wx.ListBox(self.panel, size=(200,300),style=wx.LB_EXTENDED|wx.LB_HSCROLL, choices = [])
+        # Create songs list display
+        self.songDisplay = wx.ListBox(self.panel, size=(200, 300), style=wx.LB_EXTENDED | wx.LB_HSCROLL, choices=[])
         for x in self.skm.skdbGetList('defPlaylist'):
-            self.songDisplay.Append(x.title,x)
+            self.songDisplay.Append(x.title, x)
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.addItem, self.songDisplay)
 
-        self.editDisplay = wx.ListBox(self.panel, size=(200,300),style=wx.LB_EXTENDED|wx.LB_HSCROLL, choices = [])
+        self.editDisplay = wx.ListBox(self.panel, size=(200, 300), style=wx.LB_EXTENDED | wx.LB_HSCROLL, choices=[])
         for x in self.skm.skdbGetList(editList):
             self.editDisplay.Append(x.title, x)
         self.Bind(wx.EVT_LISTBOX_DCLICK, self.remItem, self.editDisplay)
 
-        self.addBtn = wx.Button(self.panel,label='>>|')
-        self.addBtn.Bind(wx.EVT_BUTTON,self.addItems)
-        self.remBtn = wx.Button(self.panel,label='|<<')
-        self.remBtn.Bind(wx.EVT_BUTTON,self.remItems)
+        self.addBtn = wx.Button(self.panel, label='>>|')
+        self.addBtn.Bind(wx.EVT_BUTTON, self.addItems)
+        self.remBtn = wx.Button(self.panel, label='|<<')
+        self.remBtn.Bind(wx.EVT_BUTTON, self.remItems)
 
         font = wx.Font(18, wx.ROMAN, wx.ITALIC, wx.NORMAL)
-        lbl1 = wx.StaticText(self.panel,-1,style=wx.ALIGN_CENTER)
-        lbl2 = wx.StaticText(self.panel,-1,style=wx.ALIGN_CENTER)
-        lbl3 = wx.StaticText(self.panel,-1,style=wx.ALIGN_CENTER)
-        lbl4 = wx.StaticText(self.panel,-1,style=wx.ALIGN_CENTER)
+        lbl1 = wx.StaticText(self.panel, -1, style=wx.ALIGN_CENTER)
+        lbl2 = wx.StaticText(self.panel, -1, style=wx.ALIGN_CENTER)
+        lbl3 = wx.StaticText(self.panel, -1, style=wx.ALIGN_CENTER)
+        lbl4 = wx.StaticText(self.panel, -1, style=wx.ALIGN_CENTER)
 
         lbl1.SetFont(font)
         lbl1.SetLabel('Playlist')
@@ -703,15 +697,15 @@ class SKEditFrame(wx.Frame):
         lbl3.SetFont(font)
         lbl3.SetLabel(editList + ': Songs')
         lbl4.SetLabel(' ')
-        sizer = wx.GridBagSizer(0,0)
-        sizer.Add(lbl1, pos=(0,0), flag=wx.ALL, border=5)
-        sizer.Add(lbl2, pos=(0,1), flag=wx.ALL, border=5)
-        sizer.Add(lbl3, pos=(0,3), flag=wx.ALL, border=5)
-        sizer.Add(self.mediaDisplay, pos=(1,0), span=(9,0), flag=wx.EXPAND, border=5)
-        sizer.Add(self.songDisplay, pos=(1,1), span=(9,1), flag=wx.EXPAND, border=5)
-        sizer.Add(self.editDisplay, pos=(1,3), span=(9,1), flag=wx.EXPAND, border=5)
-        sizer.Add(self.addBtn, pos=(4,2), flag=wx.ALL, border=5)
-        sizer.Add(self.remBtn, pos=(5,2), flag=wx.ALL, border=5)
+        sizer = wx.GridBagSizer(0, 0)
+        sizer.Add(lbl1, pos=(0, 0), flag=wx.ALL, border=5)
+        sizer.Add(lbl2, pos=(0, 1), flag=wx.ALL, border=5)
+        sizer.Add(lbl3, pos=(0, 3), flag=wx.ALL, border=5)
+        sizer.Add(self.mediaDisplay, pos=(1, 0), span=(9, 0), flag=wx.EXPAND, border=5)
+        sizer.Add(self.songDisplay, pos=(1, 1), span=(9, 1), flag=wx.EXPAND, border=5)
+        sizer.Add(self.editDisplay, pos=(1, 3), span=(9, 1), flag=wx.EXPAND, border=5)
+        sizer.Add(self.addBtn, pos=(4, 2), flag=wx.ALL, border=5)
+        sizer.Add(self.remBtn, pos=(5, 2), flag=wx.ALL, border=5)
 
         self.panel.SetSizer(sizer)
 
@@ -721,10 +715,10 @@ class SKEditFrame(wx.Frame):
         '''
         self.songDisplay.Clear()
         name = self.mediaDisplay.GetString(self.mediaDisplay.GetSelection())
-        if(name=='Library'):
+        if (name == 'Library'):
             name = 'defPlaylist'
         for x in self.skm.skdbGetList(name):
-            self.songDisplay.Append(x.title,x)
+            self.songDisplay.Append(x.title, x)
 
     def addItems(self, event):
         '''
@@ -734,11 +728,11 @@ class SKEditFrame(wx.Frame):
         skFToAdd = []
         for x in toAdd:
             skFToAdd.append(self.songDisplay.GetClientData(x))
-        if(len(toAdd)<1):
-            #ERROR
+        if (len(toAdd) < 1):
+            # ERROR
             # wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
             return
-        self.skm.skdbUpdateListMany(1,self.editList,skFToAdd)
+        self.skm.skdbUpdateListMany(1, self.editList, skFToAdd)
         self.editDisplay.Clear()
         for x in self.skm.skdbGetList(self.editList):
             self.editDisplay.Append(x.title, x)
@@ -748,16 +742,15 @@ class SKEditFrame(wx.Frame):
         Method that adds a singular song from double click
         '''
         toAdd = self.songDisplay.GetSelections()
-        if(len(toAdd)<1):
-            #ERROR
+        if (len(toAdd) < 1):
+            # ERROR
             # wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
             return
         for x in toAdd:
-            self.skm.skdbUpdateList(1,self.editList,self.songDisplay.GetClientData(x))
+            self.skm.skdbUpdateList(1, self.editList, self.songDisplay.GetClientData(x))
         self.editDisplay.Clear()
         for x in self.skm.skdbGetList(self.editList):
             self.editDisplay.Append(x.title, x)
-
 
     def remItems(self, event):
         '''
@@ -767,11 +760,11 @@ class SKEditFrame(wx.Frame):
         skFToRem = []
         for x in toRem:
             skFToRem.append(self.editDisplay.GetClientData(x))
-        if(len(toRem)<1):
-            #ERROR
+        if (len(toRem) < 1):
+            # ERROR
             # wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
             return
-        self.skm.skdbUpdateListMany(0,self.editList,skFToRem)
+        self.skm.skdbUpdateListMany(0, self.editList, skFToRem)
         self.editDisplay.Clear()
         for x in self.skm.skdbGetList(self.editList):
             self.editDisplay.Append(x.title, x)
@@ -781,15 +774,16 @@ class SKEditFrame(wx.Frame):
         Method that removes singular song from edit list
         '''
         toRem = self.editDisplay.GetSelections()
-        if(len(toRem)<1):
-            #ERROR
+        if (len(toRem) < 1):
+            # ERROR
             # wx.MessageBox("DONT DO THAT","ERROR",wx.ICON_EXCLAMATION|wx.OK)
             return
         for x in toRem:
-            self.skm.skdbUpdateList(0,self.editList,self.editDisplay.GetClientData(x))
+            self.skm.skdbUpdateList(0, self.editList, self.editDisplay.GetClientData(x))
         self.editDisplay.Clear()
         for x in self.skm.skdbGetList(self.editList):
             self.editDisplay.Append(x.title, x)
+
 
 #####################################################################################
 class NewConnection(wx.Dialog):
@@ -813,7 +807,7 @@ class NewConnection(wx.Dialog):
 
     def skSaveConn(self, event):
         self.resultip = self.ip.GetValue()
-        if self.resultip=='127.0.0.1' or self.resultip=='localhost':
+        if self.resultip == '127.0.0.1' or self.resultip == 'localhost':
             try:
                 self.resultip = gethostbyname(gethostname())
             except Exception:
@@ -821,7 +815,8 @@ class NewConnection(wx.Dialog):
         self.resultport = self.port.GetValue()
         self.Destroy()
 
-#----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # Run the program
 if __name__ == "__main__":
     app = wx.App(False)

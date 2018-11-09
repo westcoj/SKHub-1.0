@@ -36,13 +36,15 @@ class SKMedia(object):
         #self.skLoadList('default.pl')
         
          
-    def skShuffleList(self,listcon):
+    def skShuffleList(self,listcon, saveDex):
         '''
         Method for shuffling a list, shuffles the list in place so a copy
-        must be used. This is still used currently.
+        must be used. Keeps note of current index to place at top of shufflie list
         '''
         listCopy = listcon
+        saveFile = listCopy.pop(saveDex)
         random.shuffle(listCopy)
+        listCopy.insert(0,saveFile)
         return listCopy
             
     #----------------------------------------DB METHODS-------------------------#
@@ -64,16 +66,16 @@ class SKMedia(object):
         try:
             con = sqlite3.connect(self.__dbPath, timeout=3000.00)
             cur = con.cursor()
-            getCom = ("SELECT path, songDex, title, artist, album FROM [%s]" % (self.skScrubName(name)))
+            getCom = ("SELECT path, songDex, title, artist, album, duration FROM [%s]" % (self.skScrubName(name)))
             cur.execute(getCom)
             newList = cur.fetchall()
             for x in newList:
-                skF = SKFile(x[0],x[1],x[2],x[3],x[4])
+                skF = SKFile(x[0],x[1],x[2],x[3],x[4], x[5])
                 retList.append(skF)   
             con.close()
             return retList
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         
     def skdbGetAll(self):
         '''
@@ -90,7 +92,7 @@ class SKMedia(object):
             con.close()
             return retList
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         
         
     def skdbSortList(self, option, name):
@@ -98,7 +100,7 @@ class SKMedia(object):
         Method for sorting a play list. Query the db for the proper table and sorting.
         Returns its content. Might be better to implement in GUI?
         
-        NEEDS TO BE IMPLEMENTED
+        NEEDS TO BE IMPLEMENTED (Or is it better to do this from GUI point of view?)
         '''
         if(option == 1):
             option = 'title'
@@ -110,18 +112,18 @@ class SKMedia(object):
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         try:
             retList = []
             getCom = 'SELECT * FROM [' + self.skScrubName(name) + '] ORDER BY ' + option
             cur.execute(getCom)
             newList = cur.fetchall()
             for x in newList:
-                skF = SKFile(x[0],x[1],x[2],x[3],x[4])
+                skF = SKFile(x[0],x[1],x[2],x[3],x[4], x[5])
                 retList.append(skF)
             return retList
         except:
-            return 0
+            return 1
         
                 
     def skdbNewList(self, name):
@@ -132,22 +134,24 @@ class SKMedia(object):
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         tableD = """
         CREATE TABLE IF NOT EXISTS [%s] (
             path text UNIQUE NOT NULL,
             songDex integer PRIMARY KEY,
             title text,
             artist text,
-            album text)""" % (self.skScrubName(name))
+            album text,
+            duration integer
+            )""" % (self.skScrubName(name))
         try:
             cur.execute(tableD)
             con.commit()
             con.close()
-            return 1
-        except:
             return 0
-        
+        except:
+            return 1
+
     def skdbRemoveList(self, name):
         '''
         Removes a table from the database
@@ -158,15 +162,15 @@ class SKMedia(object):
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         rmCom = ("DROP TABLE IF EXISTS [%s]" % (self.skScrubName(name)))
         try:
             cur.execute(rmCom)
             con.commit()
             con.close()
-            return 1
-        except:
             return 0
+        except:
+            return 1
         
     def skdbUpdateList(self, op, name, skF):
         '''
@@ -180,16 +184,17 @@ class SKMedia(object):
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         #Adding to list
         if(op == 1):
             try:
-                addTo = "INSERT INTO [%s] (path, songDex, title, artist, album) VALUES (?,?,?,?,?)" % (self.skScrubName(name))
-                cur.execute(addTo, (skF.path, skF.index, skF.title, skF.artist, skF.album))
+                addTo = "INSERT INTO [%s] (path, songDex, title, artist, album, duration) VALUES (?,?,?,?,?,?)" % (self.skScrubName(name))
+                cur.execute(addTo, (skF.path, skF.index, skF.title, skF.artist, skF.album, skF.time))
                 con.commit()
                 con.close()
-            except:
                 return 0
+            except:
+                return 1
         else:
             try:
 #                 rmFrom = "DELETE FROM " + name + " WHERE songDex (index) VALUES (?)"
@@ -198,8 +203,9 @@ class SKMedia(object):
                 cur.execute(remTo, (index))
                 con.commit()
                 con.close()
-            except:
                 return 0
+            except:
+                return 1
             
     def skdbUpdateListMany(self, op, name, items):
         '''
@@ -210,14 +216,14 @@ class SKMedia(object):
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
         except:
-            return 0 #DB CONNECTION ERROR
+            return 1 #DB CONNECTION ERROR
         #Adding to list
         if(op == 1):
 #             try:
             itemList = []
             for x in items:
-                itemList.append([x.path, x.index, x.title, x.artist, x.album ])
-            addTo = "INSERT OR IGNORE INTO [%s] (path, songDex, title, artist, album) VALUES (?,?,?,?,?)" %(self.skScrubName(name))
+                itemList.append([x.path, x.index, x.title, x.artist, x.album, x.time ])
+            addTo = "INSERT OR IGNORE INTO [%s] (path, songDex, title, artist, album, duration) VALUES (?,?,?,?,?,?)" %(self.skScrubName(name))
             cur.executemany(addTo, (itemList))
             con.commit()
             con.close()
@@ -234,7 +240,7 @@ class SKMedia(object):
                 con.close()
             except Exception as e:
                 print(e)
-                return 0
+                return 1
          
     def skdbUpdateDefault(self, content):
         '''
@@ -248,7 +254,7 @@ class SKMedia(object):
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
         except:
-            return 0
+            return 1
 #         try:
         findTable = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='defPlaylist'"
         cur.execute(findTable)
@@ -268,16 +274,18 @@ class SKMedia(object):
             songDex integer PRIMARY KEY,
             title text,
             artist text,
-            album text)"""
+            album text,
+            duration integer
+            )"""
         cur.execute(tableD)
-        inCom = "INSERT INTO defPlaylist (path, songDex, title, artist, album) VALUES (?,?,?,?,?)"
+        inCom = "INSERT INTO defPlaylist (path, songDex, title, artist, album, duration) VALUES (?,?,?,?,?,?)"
         for x in content:
-            cur.execute(inCom, (x.path, x.index, x.title, x.artist, x.album))
-        cur.execute("SELECT path, songDex, title, artist, album FROM defPlaylist")
+            cur.execute(inCom, (x.path, x.index, x.title, x.artist, x.album, x.time))
+        cur.execute("SELECT path, songDex, title, artist, album, duration FROM defPlaylist")
         tmplist = cur.fetchall()
         self.__list = []
         for x in tmplist:
-            skF = SKFile(x[0],x[1],x[2],x[3],x[4])
+            skF = SKFile(x[0],x[1],x[2],x[3],x[4], x[5])
             self.__list.append(skF)
         con.commit()
         con.close()
