@@ -36,11 +36,12 @@ class SKHTTPServer(object):
         self.__hostname = gethostbyname(gethostname())
         self.__pubStats = [0, 0, 0]  # Files Had, Files Served, Unique Conns Made
         self.__ipList = []
+        self.__killServer = False
         self.skSetup()
         root = self.__path
         self.__SSAddress = (self.__hostname, self.__port)
         def handler(*args):
-            return SKHTTPServerHandler(self.__homeDir, *args)
+            return SKHTTPServerHandler(self.__homeDir, self.__pubStats, *args)
         self.__SS = HTTPServer(self.__SSAddress, handler)
         self.__skFiles = []
         self.__dir = self.skBuildDir(self.__path);
@@ -81,36 +82,36 @@ class SKHTTPServer(object):
                 os.rename('settings.ini', 'settings.ini.bak', src_dir_fd=None, dst_dir_fd=None)
                 self.skSetup()
         else:
-            #             try:
-            config = configparser.ConfigParser()
-            self.__port = int(raw_input("Enter server port (default 80):  "))
-            # self.__pass = raw_input("Enter connection password:  ")
-            # self.__admPass = raw_input("Enter admin control password:  ")
-            self.__path = raw_input("Enter absolute file directory path:  ")
-            if (not self.__path.endswith('\\')):
-                self.__path += '\\'
-            config['DEFAULT'] = {}
-            config['DEFAULT']['ServerPort'] = str(self.__port)
-            config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
-            config['DEFAULT']['ConnectionPassword'] = self.__pass
-            config['DEFAULT']['AdminPassword'] = self.__admPass
-            config['DEFAULT']['ServerDirectory'] = self.__path
-            config['STATS'] = {}
-            config['STATS']['FilesServed'] = str(self.__pubStats[1])
-            config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
-            config['IPADDRS'] = {}
-            ipstring = ''
-            for x in self.__ipList:
-                print(x)
-                ipstring = ipstring + (str(x) + ',')
-            config['IPADDRS']['LIST'] = ipstring
+            try:
+                config = configparser.ConfigParser()
+                self.__port = int(raw_input("Enter server port (default 80):  "))
+                # self.__pass = raw_input("Enter connection password:  ")
+                # self.__admPass = raw_input("Enter admin control password:  ")
+                self.__path = raw_input("Enter absolute file directory path:  ")
+                if (not self.__path.endswith('\\')):
+                    self.__path += '\\'
+                config['DEFAULT'] = {}
+                config['DEFAULT']['ServerPort'] = str(self.__port)
+                config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
+                config['DEFAULT']['ConnectionPassword'] = self.__pass
+                config['DEFAULT']['AdminPassword'] = self.__admPass
+                config['DEFAULT']['ServerDirectory'] = self.__path
+                config['STATS'] = {}
+                config['STATS']['FilesServed'] = str(self.__pubStats[1])
+                config['STATS']['ConnectionsMade'] = str(self.__pubStats[2])
+                config['IPADDRS'] = {}
+                ipstring = ''
+                for x in self.__ipList:
+                    print(x)
+                    ipstring = ipstring + (str(x) + ',')
+                config['IPADDRS']['LIST'] = ipstring
 
-            with open('settings.ini', 'w') as iniFile:
-                config.write(iniFile)
+                with open('settings.ini', 'w') as iniFile:
+                    config.write(iniFile)
 
-    #             except Exception as e:
-    #                 print(e)
-    #                 print('Error making ini file')
+            except Exception as e:
+                print(e)
+                print('Error making ini file')
 
     def skUpdateINI(self):
         print(self.__ipList)
@@ -130,7 +131,6 @@ class SKHTTPServer(object):
             config['IPADDRS'] = {}
             ipstring = ''
             for x in self.__ipList:
-                print(x)
                 ipstring = ipstring + (str(x) + ',')
             config['IPADDRS']['LIST'] = ipstring
             with open('settings.ini', 'w') as iniFile2:
@@ -140,19 +140,57 @@ class SKHTTPServer(object):
             print(e)
             print('Error making ini file')
 
+    def skRunApp(self):
+        self.__serverThread = threading.Thread(target=self.skRunServer, args=())
+        self.__serverThread.start()
+        self.skRunConsole()
+
     def skRunServer(self):
         '''
         This method starts up the SKHTTPServerHandler in a new thread
         '''
-        print('Now running HTTP server')
+        print('Now running HTTP server\n')
         self.__SS.serve_forever()
 
     def skRunConsole(self):
         '''
         This method runs the console of the server for further input. Also handles resets/shutdown.
         '''
-        while(1):
-            pass
+        helpMessage = ('Use the console to pass in commands to app & server. \n'
+              'EXIT: Close down the server, save files and exit the app\n'
+              'RESET: Close down server, save files, and reboot it\n'
+              'STATS: Print out various stats about the server\n'
+              'HELP: Display this message again\n'
+              )
+        print(helpMessage)
+        exit = 0
+        while(exit == 0):
+            command = raw_input('Enter Command: ')
+            if(command.upper()=='EXIT'):
+                exit = 1;
+                self.__SS.shutdown()
+                self.__SS.server_close()
+                self.__serverThread.join(5)
+                self.skUpdateINI()
+                print('Closing down app')
+            elif(command.upper()=='RESET'):
+                exit = 1;
+                self.__SS.shutdown()
+                self.__SS.server_close()
+                self.__serverThread.join(5)
+                self.skUpdateINI()
+                self.__reset = 1
+                print('Resetting app')
+            elif(command.upper()=='HELP'):
+                print(helpMessage)
+            elif(command.upper()=='STATS'):
+                print('Total # of music files: ' + str(self.__pubStats[0]))
+                print('Total # of music files served: ' + str(self.__pubStats[1]))
+                print('List of unique IP connections (' + str(self.__pubStats[2]) +'): ')
+                for x in self.__ipList:
+                    print(x)
+            else:
+                print('Not a valid command')
 
     def skBuildDir(self, path):
         '''
@@ -161,11 +199,6 @@ class SKHTTPServer(object):
 
         path: The location of the directory to be used.
         '''
-        # try:
-        #     os.chdir(path)
-        # except:
-        #     return 1  # Invalid path
-        # fileArr = os.listdir(path)
         retArr2 = ""
         self.__skFiles = []
         self.__errList = []
@@ -225,9 +258,12 @@ class SKHTTPServer(object):
 
 
 class SKHTTPServerHandler(BaseHTTPRequestHandler):
-    def __init__(self, root, *args):
+    def __init__(self, root, pubStats, *args):
         self.__root = root
-        BaseHTTPRequestHandler.__init__(self, *args)
+        try:
+            BaseHTTPRequestHandler.__init__(self, *args)
+        except ConnectionResetError:
+            return
 
     def do_GET(self):
         '''
@@ -237,7 +273,7 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
         self.path = unquote(self.path)
         self.path = self.path[1:]
         self.path = self.path.strip()
-        print(self.path)
+        # print(self.path)
         try:
             if self.path.endswith('mp3'):
                 '''Send out a media file for playing/downloading'''
@@ -262,7 +298,15 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
                 '''Send out the stats file'''
 
         except IOError:
-            self.send_error(404,'file not found')
+            try:
+                self.send_error(404,'file not found')
+            except ConnectionResetError or ConnectionAbortedError:
+                '''Client swapped before message could be sent'''
+                pass
+
+        except ConnectionAbortedError:
+            '''Client swapped before message could be sent'''
+            pass
 
     def do_POST(self):
         '''Client is changing the server settings'''
@@ -270,7 +314,14 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
     def do_PUT(self):
         '''Client has tagging enabled an has changed file tags'''
 
+    def log_message(self, format, *args):
+        '''Override to stop printing to console'''
+        return
 
 if __name__ == "__main__":
-    skHTTP = SKHTTPServer()
-    skHTTP.skRunServer()
+    val = 1
+    while(val==1):
+        skHTTP = SKHTTPServer()
+        skHTTP.skRunApp()
+        val = skHTTP.skReset()
+    os._exit(0)
