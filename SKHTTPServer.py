@@ -114,7 +114,7 @@ class SKHTTPServer(object):
                 print('Error making ini file')
 
     def skUpdateINI(self):
-        print(self.__ipList)
+        # print(self.__ipList)
         os.chdir(self.__homeDir)
         try:
             #             if(os.path.isfile('settings.ini')):
@@ -265,6 +265,24 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
         except ConnectionResetError:
             return
 
+
+    def do_HEAD(self):
+        print(self.path)
+        self.path = unquote(self.path)
+        self.path = self.path[1:]
+        self.path = self.path.strip()
+        if self.path.endswith('mp3'):
+            '''Send out a media file for playing/downloading'''
+            check = os.path.isfile(self.path)
+            if check:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                return
+            else:
+                self.send_error(404, 'File not found')
+
+
     def do_GET(self):
         '''
         The equivalent of skclientcomm, allowing clients to get the items they need.
@@ -273,6 +291,9 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
         self.path = unquote(self.path)
         self.path = self.path[1:]
         self.path = self.path.strip()
+        print(self.path)
+        print(self.headers)
+
         # print(self.path)
         try:
             if self.path.endswith('mp3'):
@@ -284,18 +305,18 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
                 self.wfile.write(file.read())
                 file.close()
                 return
-            elif(self.path == ('ls')):
+            elif(self.path.endswith('directory.txt')):
                 '''Send out the directory file'''
                 print('Sending Directory')
                 file = open(self.__root + '\directory.txt', 'rb')
                 self.send_response(200)
-                self.send_header('Content-type', 'data/bytes')
+                self.send_header('Content-type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(file.read())
                 file.close()
                 return
-            elif(self.path == 'stats'):
-                '''Send out the stats file'''
+            elif (self.path.endswith('stats.txt')):
+                '''Send out current stats file'''
 
         except IOError:
             try:
@@ -314,9 +335,10 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
     def do_PUT(self):
         '''Client has tagging enabled an has changed file tags'''
 
-    def log_message(self, format, *args):
-        '''Override to stop printing to console'''
-        return
+    #
+    # def log_message(self, format, *args):
+    #     '''Override to stop printing to console'''
+    #     return
 
 if __name__ == "__main__":
     val = 1

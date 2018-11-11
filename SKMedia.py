@@ -290,7 +290,51 @@ class SKMedia(object):
         con.commit()
         con.close()
         return 1
-    
+
+    def skdbSearchList(self, option, value, list):
+        if (option == 1):
+            option = 'title'
+        if (option == 2):
+            option = 'artist'
+        if (option == 3):
+            option = 'album'
+        try:
+            con = sqlite3.connect(self.__dbPath)
+            cur = con.cursor()
+        except:
+            return 1  # DB CONNECTION ERROR
+        try:
+            retList = []
+            getCom = "SELECT * FROM [%s] WHERE [%s]=?;" % (self.skScrubName(list),option)
+            cur.execute(getCom, value)
+            newList = cur.fetchall()
+            for x in newList:
+                skF = SKFile(x[0], x[1], x[2], x[3], x[4], x[5])
+                retList.append(skF)
+            return retList
+        except Exception as e:
+            print(e)
+            return 1
+
+    def skdbGetUniques(self, option):
+        try:
+            con = sqlite3.connect(self.__dbPath)
+            cur = con.cursor()
+        except:
+            return 1  # DB CONNECTION ERROR
+        try:
+            retList = []
+            if option=='artist':
+                getCom = "SELECT DISTINCT artist FROM defPlaylist"
+            elif option=='album':
+                getCom = "SELECT DISTINCT album FROM defPlaylist"
+            cur.execute(getCom)
+            newList = cur.fetchall()
+            return newList
+        except Exception as e:
+            print(e)
+            return 1
+
 if __name__ == "__main__":
     s = 'HELLO W@RLD 19 !!))' 
     s = re.sub('[^0-9a-zA-Z ]+','',s)

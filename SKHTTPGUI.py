@@ -11,6 +11,7 @@ from SKFile import SKFile
 import configparser
 import http.client
 import ipaddress
+import time
 
 # for future use
 # import wx.lib.agw.aquabutton as AB
@@ -67,12 +68,16 @@ class SKGUI(wx.Panel):
                 config.read('sksettings.ini')
                 self.__host = config['DEFAULT']['ServerIP']
                 self.__port = int(config['DEFAULT']['ServerPort'])
+                self.__customServer = int(config['DEFAULT']['CustomServer'])
+                self.__dirLocation = config['DEFAULT']['ServerDirectoryFile']
+                self.__timeout = float(config['DEFAULT']['ServerTimeout'])
+
                 # self.__pass = config['DEFAULT']['ConnectionPassword']
                 # self.__admPass = config['DEFAULT']['AdminPassword']
-                return SKHTTPClient(self.__port, self.__host)
+                return SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout)
             except Exception as e:
-                wx.MessageBox('Issue with INI file, please set connection', 'INI File', wx.ICON_EXCLAMATION)
-                return SKHTTPClient(80, '127.0.0.1')
+                wx.MessageBox('Issue with INI file, please check settings', 'INI File', wx.ICON_EXCLAMATION)
+                return SKHTTPClient(80, '127.0.0.1', 0, .5)
 
         else:
             result = wx.MessageBox("Welcome to SounderKin!\nPlease estabhlish a conneciton...", "Welcome",
@@ -83,7 +88,13 @@ class SKGUI(wx.Panel):
                     self.__host = self.skPopUpValue('Enter Server IP', '127.0.0.1')
                     try:
                         ipaddress.ip_address(self.__host)
-                        break
+                        if self.__host == '127.0.0.1' or self.__host == 'localhost':
+                            try:
+                                self.__host = gethostbyname(gethostname())
+                            except Exception:
+                                pass
+                        else:
+                            break
                     except:
                         wx.MessageBox("Enter a valid IP address", "IP Address", wx.ICON_EXCLAMATION | wx.OK)
                 while True:
@@ -93,6 +104,24 @@ class SKGUI(wx.Panel):
                         break
                     except:
                         wx.MessageBox("Enter a valid port", "Port Number", wx.ICON_EXCLAMATION | wx.OK)
+
+                while True:
+                    '''Get Timeout'''
+                    try:
+                        self.__timeout = float(self.skPopUpValue('Server Timeout (In Seconds)', '.5'))
+                        break
+                    except:
+                        wx.MessageBox("Enter a valid time", "Timeout", wx.ICON_EXCLAMATION | wx.OK)
+
+                '''Get Server Directory Location'''
+                self.__dirLocation = self.skPopUpValue('Enter Location of Server directory file','directory.txt')
+
+                '''Get if user is using SK server'''
+                customServerVal = wx.MessageDialog(None,"Are you using the SKServer?", style=wx.YES_NO|wx.CENTRE).ShowModal()
+                if(customServerVal==wx.ID_YES):
+                    self.__customServer = 1
+                else:
+                    self.__customServer = 0
                 # self.__pass = self.skPopUpValue('Connection Password', '')
                 # self.__admPass = self.skPopUpValue('Enter Admin Password (if known)', '')
                 try:
@@ -100,19 +129,37 @@ class SKGUI(wx.Panel):
                     config['DEFAULT'] = {}
                     config['DEFAULT']['ServerIP'] = self.__host
                     config['DEFAULT']['ServerPort'] = str(self.__port)
+                    config['DEFAULT']['CustomServer'] = str(self.__customServer)
+                    config['DEFAULT']['ServerDirectoryFile'] = self.__dirLocation
+                    config['DEFAULT']['ServerTimeout'] = str(self.__timeout)
+
                     # config['DEFAULT']['ConnectionPassword'] = self.__pass
                     # config['DEFAULT']['AdminPassword'] = self.__admPass
                     with open('sksettings.ini', 'w') as iniFile:
                         config.write(iniFile)
                 except Exception as e:
                     wx.MessageBox('Issue with INI file, please set connection', 'INI File', wx.ICON_EXCLAMATION)
-                return SKHTTPClient(self.__port, self.__host)
+                return SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout)
             if result == wx.CANCEL:
                 # ENTER EXIT METHOD
                 return 1
 
     def skUpdateIni(self):
         '''Method to update ini'''
+        try:
+            config = configparser.ConfigParser()
+            config['DEFAULT'] = {}
+            config['DEFAULT']['ServerIP'] = self.__host
+            config['DEFAULT']['ServerPort'] = str(self.__port)
+            config['DEFAULT']['CustomServer'] = str(self.__customServer)
+            config['DEFAULT']['ServerDirectoryFile'] = self.__dirLocation
+            config['DEFAULT']['ServerTimeout'] = str(self.__timeout)
+            # config['DEFAULT']['ConnectionPassword'] = self.__pass
+            # config['DEFAULT']['AdminPassword'] = self.__admPass
+            with open('sksettings.ini', 'w') as iniFile:
+                config.write(iniFile)
+        except Exception as e:
+            wx.MessageBox('Issue with updating INI file', 'INI File', wx.ICON_EXCLAMATION)
 
     def skPopUpValue(self, text, defValue):
         '''
@@ -137,7 +184,7 @@ class SKGUI(wx.Panel):
         try:
             self.mediaPlayer = wx.media.MediaCtrl(self, style=wx.SIMPLE_BORDER, szBackend=wx.media.MEDIABACKEND_WMP10)
             self.Bind(wx.media.EVT_MEDIA_LOADED, self.loadPlay)
-            self.mediaPlayer.Bind(wx.media.EVT_MEDIA_FINISHED, self.onNext, self.mediaPlayer)
+            self.mediaPlayer.Bind(wx.media.EVT_MEDIA_FINISHED, self.skNext, self.mediaPlayer)
 
         except Exception as e:
             # print(e)
@@ -215,7 +262,7 @@ class SKGUI(wx.Panel):
         """
         audioBarSizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.buildBtn({'bitmap': 'prev.png', 'handler': self.onPrev,
+        self.buildBtn({'bitmap': 'prev.png', 'handler': self.skPrev,
                        'name': 'prev'},
                       audioBarSizer)
 
@@ -235,7 +282,7 @@ class SKGUI(wx.Panel):
         btnData = [{'bitmap': 'stop.png',
                     'handler': self.onStop, 'name': 'stop'},
                    {'bitmap': 'next.png',
-                    'handler': self.onNext, 'name': 'next'}]
+                    'handler': self.skNext, 'name': 'next'}]
         for btn in btnData:
             self.buildBtn(btn, audioBarSizer)
 
@@ -269,6 +316,7 @@ class SKGUI(wx.Panel):
         updateListItem = mediaMenu.Append(wx.Window.NewControlId(), "&Update Library", "Update Media Directory")
         listItem = mediaMenu.Append(wx.Window.NewControlId(), "&Playlists", "Create Playlist")
         shuffleItem = mediaMenu.Append(wx.Window.NewControlId(), '&Shuffle', 'Shuffle Current List')
+        batchItem = mediaMenu.Append(wx.Window.NewControlId(), '&Batch Download', 'Batch Download')
         menubar.Append(mediaMenu, '&Media')
 
         self.frame.SetMenuBar(menubar)
@@ -276,10 +324,13 @@ class SKGUI(wx.Panel):
         self.frame.Bind(wx.EVT_MENU, self.skGetList, updateListItem)
         self.frame.Bind(wx.EVT_MENU, self.skListOption, listItem)
         self.frame.Bind(wx.EVT_MENU, self.skShuffleList, shuffleItem)
+        self.frame.Bind(wx.EVT_MENU, self.skBatchDownload, batchItem)
+
 
     def skExitApp(self, event):
         '''Method runs when user hits close'''
         self.frame.Destroy()
+        self.skUpdateIni()
 
     def skSetConnection(self, event):
         '''
@@ -301,21 +352,47 @@ class SKGUI(wx.Panel):
             return
         dlg.Destroy()
 
-        self.skc = SKHTTPClient(self.__port, self.__host);
+        self.skc = SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout);
         self.connected = self.skc.skTestConnection()
         if (self.connected == 1):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
 
+    def skBatchDownload(self, event):
+        batchFrame = SKBatchFrame(self.mediaManager)
+        batchFrame.ShowModal()
+        if batchFrame.selection:
+            if (batchFrame.selType == 'Playlists'):
+                dList = self.mediaManager.skdbGetList(batchFrame.selection)
+            elif (batchFrame.selType == 'Artists'):
+                dList = self.mediaManager.skdbSearchList(2, batchFrame.selection, 'defPlaylist')
+            elif (batchFrame.selType == 'Albums'):
+                dList = self.mediaManager.skdbSearchList(3, batchFrame.selection, 'defPlaylist')
+            # batchDlFrame = SKBatchDlFrame(dList, self.skc)
+            # batchDlFrame.ShowModal()
+            batchDLFrame = wx.GenericProgressDialog('','Downloading Files', maximum=len(dList), style=wx.PD_CAN_ABORT)
+            batchDLFrame.Show()
+            val = 0
+            for x in dList:
+                self.skc.skBatchFile(int(x.index), batchFrame.selection)
+                val += 1
+                check = batchDLFrame.Update(val)
+                if not check:
+                    break
+        else:
+            return
+
     def skGetList(self, event):
         '''
         Method for updating default display list
         '''
-        check = self.skc.skBuildDir()
-        if (check == 1):
+        check = self.skc.skBuildDir('E:/Code2/PyCharm/Projects/SK1.2/venv/directory.txt')
+        if (check == 2):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
+        if(check == 1):
+            wx.MessageBox("Something wen't wrong with directory building", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
         self.onStop(wx.EVT_BUTTON)
         self.playIndex = 0
         self.mediaList = []
@@ -395,22 +472,29 @@ class SKGUI(wx.Panel):
         if (cs):
             # Start current song over again
             if (self.currentSong == index):  # skf.index):
-                self.loadMusic(self.skc.skGetFileDir()[index].path)
+                self.skLoadMusic(self.skc.skGetFileDir()[index].path, index)
                 return
         # if val == 0:
             # continue
-        # In future use HEAD to confirm file exists before loading
-        self.loadMusic(self.skc.skGetFileDir()[index].path)
+        # In future use HEAD to confirm file exists before loading (Done in loadMusic method
+        self.skLoadMusic(self.skc.skGetFileDir()[index].path, index)
         self.currentSong = index
         # else:
             # wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",
             #               wx.ICON_EXCLAMATION | wx.OK)
 
-    def loadMusic(self, musicPath):
+    def skLoadMusic(self, musicPath, index):
         """
         Load the music into the MediaCtrl or display an error dialog
         if the user tries to load an unsupported file type
         """
+        val = self.skc.skCheckFile(index)
+        if(val==1):
+            wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",wx.ICON_EXCLAMATION | wx.OK)
+            return
+        elif(val==2):
+            wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+            return
         request = self.uri + musicPath
         print(request)
         if not self.mediaPlayer.LoadURI(request):
@@ -424,7 +508,7 @@ class SKGUI(wx.Panel):
             # self.playSlider.SetRange(0, self.mediaPlayer.Length())
             self.playPauseBtn.Enable(True)
 
-    def onNext(self, event):
+    def skNext(self, event):
         """
         Method that selects next song from list, or stops if end of list is reached.
         """
@@ -441,7 +525,7 @@ class SKGUI(wx.Panel):
 
         index = self.mediaDisplay.GetItemData(self.playIndex + 1)
         # Potential use of HEAD request to confirm file's existence before loading
-        self.loadMusic(self.skc.skGetFileDir()[index].path)
+        self.skLoadMusic(self.skc.skGetFileDir()[index].path, index)
         self.mediaDisplay.Select(self.playIndex + 1, True)
         self.mediaDisplay.SetItemState(self.playIndex + 1, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
         self.currentSong = index
@@ -450,7 +534,7 @@ class SKGUI(wx.Panel):
         #     wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",
         #                   wx.ICON_EXCLAMATION | wx.OK)
 
-    def onPrev(self, event):
+    def skPrev(self, event):
         """
         Method that loads up the previous song, based on playlist order.
 
@@ -462,7 +546,7 @@ class SKGUI(wx.Panel):
             self.onStop(wx.EVT_CATEGORY_ALL)
             return
         index = self.mediaDisplay.GetItemData(self.playIndex - 1)
-        self.loadMusic(self.skc.skGetFileDir()[index].path)
+        self.skLoadMusic(self.skc.skGetFileDir()[index].path, index)
         self.mediaDisplay.Select(self.playIndex - 1, True)
         self.currentSong = index
         self.playIndex -= 1
@@ -498,9 +582,9 @@ class SKGUI(wx.Panel):
         Method that plays the loaded music automatically
         '''
         self.mediaPlayer.Play()
-        self.mediaPlayer.SetInitialSize()
-        self.GetSizer().Layout()
-        self.playSlider.SetRange(0, self.mediaList[self.playIndex].time*1000)
+        # self.mediaPlayer.SetInitialSize()
+        # self.GetSizer().Layout()
+        # self.playSlider.SetRange(0, self.mediaList[self.playIndex].time*1000)
         # self.playSlider.SetRange(0, self.mediaPlayer.Length())
         self.playPauseBtn.SetValue(True)
 
@@ -540,8 +624,11 @@ class SKGUI(wx.Panel):
         """
         Keeps the player slider updated
         """
-        offset = self.mediaPlayer.Tell()
-        self.playSlider.SetValue(offset)
+        try:
+            offset = self.mediaPlayer.Tell()
+            self.playSlider.SetValue(offset)
+        except RuntimeError:
+            pass #Closed app while trying to get time for slider, unimportant
 
 
 ########################################################################
@@ -799,7 +886,7 @@ class NewConnection(wx.Dialog):
         self.saveButton.Bind(wx.EVT_BUTTON, self.skSaveConn)
         self.closeButton.Bind(wx.EVT_BUTTON, self.OnQuit)
         self.Bind(wx.EVT_CLOSE, self.OnQuit)
-        self.Show()
+        # self.Show()
 
     def OnQuit(self, event):
         self.resultip = None
@@ -814,6 +901,71 @@ class NewConnection(wx.Dialog):
                 pass
         self.resultport = self.port.GetValue()
         self.Destroy()
+
+#####################################################################################
+class SKBatchFrame(wx.Dialog):
+    '''
+    Method that handles editing playlists frame
+    '''
+
+    def __init__(self, skm):
+        '''
+        Gets passed the original and mediaManager
+        '''
+
+        self.skm = skm
+        wx.Dialog.__init__(self, None, title='Batch Management', size=(250, 450))
+        self.panel = wx.Panel(self)
+        choiceList = ['Albums','Artists','Playlists']
+        self.choiceBox = wx.Choice(self.panel,choices=choiceList, size=(150,25))
+        self.choiceBox.Bind(wx.EVT_CHOICE,self.skOnChoice)
+        self.batchDisplay = wx.ListBox(self.panel, size=(200, 300), style=wx.LB_SINGLE | wx.LB_HSCROLL, choices=[])
+        self.batchButton = wx.Button(self.panel, label="Batch Download", pos=(110, 160))
+        self.batchButton.Bind(wx.EVT_BUTTON, self.skOnBatch)
+        mainSizer = wx.GridBagSizer(0,0)
+        mainSizer.Add(self.choiceBox, pos=(0,0), flag=wx.ALL, border=5)
+        mainSizer.Add(self.batchDisplay, pos=(1,0), flag=wx.ALL, border=5)
+        mainSizer.Add(self.batchButton, pos=(2,0), flag=wx.ALL, border=5)
+        self.panel.SetSizer(mainSizer)
+        self.selection = None
+        self.selType = None
+
+
+
+    def skOnChoice(self, event):
+        option = self.choiceBox.GetString(self.choiceBox.GetSelection())
+        if(option == '' ):
+            return
+        self.batchDisplay.Clear()
+        if(option == 'Albums'):
+            '''db access albums'''
+            dispList = self.skm.skdbGetUniques('album')
+            for x in dispList:
+                self.batchDisplay.Append(x)
+        elif(option == 'Artists'):
+            '''db display artist'''
+            dispList = self.skm.skdbGetUniques('artist')
+            for x in dispList:
+                self.batchDisplay.Append(x)
+        elif(option == 'Playlists'):
+            '''db access playlists'''
+            for x in self.skm.skdbGetAll():
+                if (x == '_defPlaylist_OLD'):
+                    pass
+                elif (x == 'defPlaylist'):
+                    pass
+                else:
+                    self.batchDisplay.Append(x)
+
+    def skOnBatch(self, event):
+        '''User hit batch button'''
+        try:
+            self.selType = self.choiceBox.GetString(self.choiceBox.GetSelection())
+            self.selection = self.batchDisplay.GetString(self.batchDisplay.GetSelection())
+            self.Destroy()
+        except:
+            pass
+
 
 
 # ----------------------------------------------------------------------
