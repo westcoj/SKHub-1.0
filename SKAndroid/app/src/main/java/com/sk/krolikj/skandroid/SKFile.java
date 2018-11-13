@@ -7,6 +7,7 @@ public class SKFile {
     private String songTitle;
     private String songArtist;
     private String songAlbum;
+    private String cachePath;
 
     public SKFile(String path, int index, String title, String artist, String album){
         filePath = path;
@@ -27,6 +28,30 @@ public class SKFile {
 
     public String getFilePath(){
         return filePath;
+    }
+
+    public int getsongIndex(){
+        return songIndex;
+    }
+
+    public String getSongTitle(){
+        return songTitle;
+    }
+
+    public String getSongArtist(){
+        return songArtist;
+    }
+
+    public String getSongAlbum(){
+        return songAlbum;
+    }
+
+    public String getCachePath() {
+        return cachePath;
+    }
+
+    public void skAddPath(String path){
+        cachePath = path;
     }
 
     public String toString(){

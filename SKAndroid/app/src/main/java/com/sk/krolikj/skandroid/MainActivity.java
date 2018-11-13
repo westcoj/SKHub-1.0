@@ -1,31 +1,48 @@
 package com.sk.krolikj.skandroid;
 
+
+import android.content.Context;
+import android.content.Intent;
 import android.media.MediaPlayer;
 import android.media.session.MediaController;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.BottomNavigationView;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 
+import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.LinkOption;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
+    private String theHostName;
+    private String thePortNum;
+    private TextView mTextMessage;
     private int portNum;
     private String dirPath;
     private String hostName;
@@ -33,10 +50,20 @@ public class MainActivity extends AppCompatActivity {
     private Socket sock;
     private DataInputStream dIS;
     private DataOutputStream dOS;
-    private ArrayList directory;
+    private String[] directory;
     private ArrayList <SKFile> skFile;
     private MediaPlayer mp;
     private MediaController mc;
+    private File cacheDir;
+    private File ouputFile;
+    private Context appContext;
+    private ArrayList<SKFile> cache;
+    private final static int CACHEMAX = 5;
+    private BottomNavigationView navigation;
+    private HomeFragment homeFragment;
+    private PlayerFragment playerFragment;
+    private ConfigFragment configFragment;
+
 
 
 //    public MainActivity(String path, int port, String ip){
@@ -86,11 +113,24 @@ public class MainActivity extends AppCompatActivity {
             return 1;
         }
     }
+    public String getHostPort(){
+        return theHostName + "/" + thePortNum;
+    }
+
+    public void setHostPort(String host, String port){
+        theHostName = host;
+        thePortNum = port;
+
+    }
 
     private void skClose() throws IOException {
         sock.close();
         sockStatus = false;
     }
+
+//    private boolean skCacheCheck(int index){
+//        return cache.contains(cache.get(index));
+//    }
 
     private void skSend(String s){
         int len;
@@ -133,28 +173,125 @@ public class MainActivity extends AppCompatActivity {
         return buffer;
     }
 
-    public int skRCVFileIndex(int index){
-        String name;
-        String path;
+    public int skUIFile(int index)throws IOException{
+        int con;
+        byte[] ansData;
+        String ans;
+        SKFile temp;
+
+//        if(skCacheCheck(index)){
+//            temp = cache.get(index);
+//            cache.remove(index);
+//            cache.add(temp);
+//            return 0;
+//        }
+        con = skOpen();
+        if(con == 0){
+            skSend("file");
+            ansData = skRecieve();
+            if(ansData != null){
+                ans = new String(ansData);
+                if(ans.equals("okay")){
+                    return skRCVFileIndex(index);
+                }else{
+                    return -5;
+                }
+            }else{
+                return -5;
+            }
+            //skClose();
+        }
+        return -5;
+    }
+
+    public int skRCVFileIndex(int index) throws IOException{
+        String name = "";
+        String path = "";
         byte[] fileData;
-        File file;
-        if(sockStatus == false){
+        SKFile file;
+        //Path p;
+
+        if(!sockStatus){
             skOpen();
         }
         skSend(Integer.toString(index));
         fileData = skRecieve();
         try{
-            name = skFile.get(index).getFilePath();
+            name = skFile.get(index).getsongIndex() + ".mp3";
         }catch(Exception e) {
-            return 0;
+            Log.e("NAMING", e.toString());
         }
-        if(fileData.length == 0){
+        Log.d("FILE DATA", fileData.length + "");
+        if(fileData.length != 0){
+            path = dirPath + "\\" + name;
+//            p = Paths.get(dirPath + name);
+//            if(Files.notExists(p)){
+//                new File(path).mkdirs();
+//            }
+            FileOutputStream fos = new FileOutputStream(path);
+            fos.write(fileData);
+            fos.close();
+            skFile.get(index).skAddPath(path);
+            if(cache.size() > CACHEMAX){
+                file = cache.remove(0);
+                appContext.deleteFile(file.getCachePath());
+            }
+            cache.add(skFile.get(index));
+            skClose();
+            return 0;
+        }else {
+            skClose();
+            return 1;
+        }
+    }
 
-
+    public int userComm(String command) throws IOException{
+        int val;
+        byte[] data;
+        String[] skData;
+        String dataString;
+        SKFile sk;
+        if(command.equals("update")){
+            val = skOpen();
+            if(val == 1) {
+                Log.e("OPEN", "Error connecting to server");
+                return 1;
+            }
+            skSend("ls");
+            data = skRecieve();
+            dataString = new String(data);
+            System.out.println(dataString);
+            directory = dataString.split("\n");
+            for(String x: directory){
+                skData = x.split("&%&");
+                System.out.println(x);
+                if(skData.length == 5) {
+                    sk = new SKFile(skData[0], Integer.parseInt(skData[1]),
+                            skData[2], skData[3], skData[4]);
+                    skFile.add(sk);
+                }
+            }
+            skClose();
+        }else if(command == "ls"){
+            int i = 0;
+            while (i < directory.length){
+                System.out.println(i + ": " + directory[i]);
+                i++;
+            }
+        }else if(command == "file"){
+            val = skOpen();
+            if(val == 1) {
+                Log.e("OPEN", "Error Contacting Server");
+                return 1;
+            }
         }
         return 0;
+    }
 
-
+    public void skCleanUp(){
+        for(SKFile x: cache){
+            appContext.deleteFile(x.getCachePath());
+        }
     }
 
     public void audioPlayer(String path, String fileName){
@@ -173,10 +310,53 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mp = MediaPlayer.create(this, R.raw.music);
-        mp.setLooping(true);
-        mp.seekTo(0);
-        mp.setVolume(0.5f, 0.5f);
+        navigation = findViewById(R.id.navigation);
+//        Menu menu = navigation.getMenu();
+//        MenuItem menuItem = menu.getItem(0);
+//        menuItem.setChecked(true);
+        homeFragment = new HomeFragment();
+        playerFragment = new PlayerFragment();
+        configFragment = new ConfigFragment();
+
+
+        navigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                switch (item.getItemId()) {
+                    case R.id.navigation_library:
+                        setFragment(homeFragment);
+                        return true;
+                    case R.id.navigation_player:
+                        setFragment(playerFragment);
+//                        Intent intent = new Intent(MainActivity.this, PlayerActivity.class);
+//                        startActivity(intent);
+                        return true;
+                    case R.id.navigation_config:
+                        setFragment(configFragment);
+//                        Intent intent1 = new Intent(MainActivity.this, ConfigActivity.class);
+//                        startActivity(intent1);
+                        return true;
+                }
+
+                return false;
+            }
+        });
+
+    //    };
+
+        appContext = getApplication();
+        cacheDir = getCacheDir();
+        dirPath = cacheDir.toString();
+        skFile = new ArrayList<SKFile>();
+        cache = new ArrayList<SKFile>();
+
+//        mp = MediaPlayer.create(this, R.raw.music);
+//        mp.setLooping(true);
+//        mp.seekTo(0);
+//        mp.setVolume(0.5f, 0.5f);
+
+        mTextMessage = (TextView) findViewById(R.id.message);
+        //navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
     }
 
     private class ConnectTask extends AsyncTask<Void, Void, Void>{
@@ -185,27 +365,28 @@ public class MainActivity extends AppCompatActivity {
         protected Void doInBackground(Void... params){
             byte[] fileData;
             skSetIpHost("192.168.1.78", 9222);
-            skOpen();
-            if(sockStatus) {
-                skSend("ls");
-                Log.d("RECEIVE", new String(skRecieve()));
-//                try {
-//                    skClose();
-//                    Log.d("CLOSE", "Connection Closed");
-//                } catch (IOException e) {
-//                    Log.e("CLOSE", e.toString());
-//                }
+            //skOpen();
+            System.out.println(dirPath);
+            try {
+                userComm("update");
+                skUIFile(0);
+            } catch (IOException e) {
+                Log.e("UIFILE", e.toString());
             }
             return null;
         }
     }
 
+    public void setFragment(Fragment frag){
+        FragmentTransaction fragTrans = getSupportFragmentManager().beginTransaction();
+        fragTrans.replace(R.id.mainFrame, frag);
+        fragTrans.commit();
+    }
+
     public void connect(View view){
         new ConnectTask().execute();
     }
-//        skSetIpHost(findViewById(R.id.ipBox).toString(),
-//                Integer.parseInt(findViewById(R.id.portBox).toString()));
-//    }
+
     public void playPause(View view){
         if(mp.isPlaying()) {
             mp.pause();
@@ -218,3 +399,4 @@ public class MainActivity extends AppCompatActivity {
 
     }
 }
+
