@@ -9,8 +9,9 @@ import socket
 import threading
 import os
 import struct
+from mutagen.mp3 import MP3
+from mutagen.easyid3 import EasyID3
 from pip._vendor.distlib.compat import raw_input
-from tinytag import TinyTag
 from SKFile import SKFile
 import configparser
 
@@ -154,6 +155,7 @@ class SKServer(object):
         Main method of running the server, allowing connections from clients. Opens
         the server sockets and starts individual threads based on requests.
         '''
+
         try:
             self.__SS.listen(self.__conns)
             print('Server listening on port: ' + str(self.__port))
@@ -257,18 +259,12 @@ class SKServer(object):
         self.skSend('yes'.encode(), socket)
         commData = self.skRCV(socket)
         command = commData.decode().split('&%&')
-        if(command[0]=='port'):
+        if(command[0]=='settings'):
             'Change port, requires reset'
             portNum = int(command[1])
+            connsNum = int(command[2])
             self.__port=portNum
-            self.skUpdateINI()
-            self.__reset = 1
-            self.__exitVal = 1
-            return
-        elif(command[0]=='conns'):
-            'Change max number of connections, requires reset'
-            connNum = int(command[1])
-            self.__conns=connNum
+            self.__conns=connsNum
             self.skUpdateINI()
             self.__reset = 1
             self.__exitVal = 1
@@ -333,7 +329,10 @@ class SKServer(object):
         
         path: The location of the directory to be used.
         '''
-        os.chdir(path)
+        try:
+            os.chdir(path)
+        except:
+            return 1 #Invalid path
         #fileArr = os.listdir(path)
         retArr2 = ""
         self.__skFiles = []
@@ -342,48 +341,54 @@ class SKServer(object):
         i = 0
         for root, dirs, files in os.walk('.'):
             for name in files:
-                if(root == '.'):
+                # if(root == '.'):
 #                     sys.stdout.buffer.write((name+'\n').encode())
                     #Tiny Tag supports other formats, but for now mp3 will suffice
-                    if(name.endswith('.mp3')):
-                        try:
+                if(name.endswith('.mp3')):
+                    try:
 #                             sys.stdout.buffer.write((name+'\n').encode())
-                            tag = TinyTag.get(name)
-                            skF = SKFile(name,i,tag.title,tag.artist,tag.album)
-                            i+=1
-                            self.__skFiles.append(skF)
-                            self.__pubStats[0] += 1
-                        #Special duration error on TinyTag Most likely Throws 2 errors
-                        except Exception as e:
-                            try:
-                                tag = TinyTag.get(name, duration=False)
-                                skF = SKFile(name,i,tag.title,tag.artist,tag.album)
-                                i+=1
-                                self.__skFiles.append(skF)
-                                self.__pubStats[0] += 1
-                            #Second TinyTag failure, give up on that file
-                            except:
-                                self.__errList.append(name)
-                                pass
-                else:
-                    if(name.endswith('.mp3')):
-                        newRoot = root[2:] + '\\' + name
-                        try:
-                            tag = TinyTag.get(newRoot)
-                            skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
-                            i+=1
-                            self.__skFiles.append(skF)
-                            self.__pubStats[0] += 1
-                        except:
-                            try:
-                                tag = TinyTag.get(newRoot, duration=False)
-                                skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
-                                i+=1
-                                self.__skFiles.append(skF)
-                                self.__pubStats[0] += 1
-                            except:
-                                self.__errList.append(name)
-                                pass
+                        tag = MP3(name, ID3=EasyID3)
+                        if 'title' in tag:
+                            title = tag['title'][0]
+                        else:
+                            title = name
+                        if 'artist' in tag:
+                            artist = tag['artist'][0]
+                        else:
+                            artist = ''
+                        if 'album' in tag:
+                            album = tag['album'][0]
+                        else:
+                            album = ''
+                        time = tag.info.length
+                        skF = SKFile(name, i, title, artist, album, time)
+                        i+=1
+                        self.__skFiles.append(skF)
+                        self.__pubStats[0] += 1
+                    #Special duration error on TinyTag Most likely Throws 2 errors
+                    except Exception as e:
+                        print(e)
+                        self.__errList.append(name)
+                        pass
+                # else:
+                #     if(name.endswith('.mp3')):
+                #         newRoot = root[2:] + '\\' + name
+                #         try:
+                #             tag = TinyTag.get(newRoot)
+                #             skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
+                #             i+=1
+                #             self.__skFiles.append(skF)
+                #             self.__pubStats[0] += 1
+                #         except:
+                #             try:
+                #                 tag = TinyTag.get(newRoot, duration=False)
+                #                 skF = SKFile(newRoot,i,tag.title,tag.artist,tag.album)
+                #                 i+=1
+                #                 self.__skFiles.append(skF)
+                #                 self.__pubStats[0] += 1
+                #             except:
+                #                 self.__errList.append(name)
+                #                 pass
         for x in self.__skFiles:
             retArr2 = retArr2 + x.skToString() + '\n'
 #             sys.stdout.buffer.write((x.skToString()+'\n').encode())
