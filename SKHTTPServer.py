@@ -92,9 +92,8 @@ class SKHTTPServer(object):
                     self.__path += '\\'
                 config['DEFAULT'] = {}
                 config['DEFAULT']['ServerPort'] = str(self.__port)
-                config['DEFAULT']['ConnectionLimit'] = str(self.__conns)
-                config['DEFAULT']['ConnectionPassword'] = self.__pass
-                config['DEFAULT']['AdminPassword'] = self.__admPass
+                # config['DEFAULT']['ConnectionPassword'] = self.__pass
+                # config['DEFAULT']['AdminPassword'] = self.__admPass
                 config['DEFAULT']['ServerDirectory'] = self.__path
                 config['STATS'] = {}
                 config['STATS']['FilesServed'] = str(self.__pubStats[1])
