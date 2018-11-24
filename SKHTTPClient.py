@@ -105,15 +105,17 @@ class SKHTTPClient(object):
             try:
                 with open("serverdirectory.txt", "wb") as text_file:
                     text_file.write(r.content)
-            except Exception:
+            except Exception as e:
+                print(e)
                 #Issue creating server directory
                 return 1
         else:
             return 3 #Can't find file
         try:
-            with open("serverdirectory.txt", 'r') as text_file:
+            with open("serverdirectory.txt", 'r', encoding='utf-8') as text_file:
                 self.__dir = text_file.readlines()
         except Exception as e:
+            print(e)
             return 1
         try:
             self.__dir.pop()

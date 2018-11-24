@@ -247,11 +247,12 @@ class SKHTTPServer(object):
     def skBuildDirFile(self):
         '''This builds a file based off skFiles for sending to client'''
         try:
-            with open("directory.txt", "w") as text_file:
+            with open("directory.txt", "wb") as text_file:
                 for x in self.__skFiles:
-                    text_file.write(x.skToString() + '\n')
+                    text_file.write(x.skToString().encode() + '\n'.encode())
             return 0
-        except Exception:
+        except Exception as e:
+            print(e)
             print('Problem building directory text')
             return 1
 
