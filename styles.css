@@ -1,0 +1,209 @@
+.FullContainer {
+    /*align-self: center;*/
+    /*align-items: center;*/
+    /*justify-content: center;*/
+    text-align: center;
+    height: 600px;
+    width: 700px;
+    margin: auto;
+    position: relative;
+    /*background-image: url('../back.png');*/
+}
+
+
+.TopBlock{
+    height: 50px;
+    width: 700px;
+    position: relative;
+    /*display: inline-block;*/
+}
+
+.HeaderBlock{
+    /*width: 450px;*/
+    width: 64%;
+    height: 50px;
+    text-align: center;
+    border-style: solid;
+    border-color: #121212;
+    background-color: white;
+    position: relative;
+
+    float:left;
+}
+
+#welcome{
+    display: inline;
+}
+
+
+.PlaylistHeaderBlock{
+    width: 27%;
+    height: 100%;
+    text-align: center;
+    border-style: solid;
+    border-color: #121212;
+    background-color: white;
+    float:left;  /*float:right;*/
+    position: relative;
+
+}
+
+#playlistHeader{
+    display:inline;
+    /*position: absolute;*/
+}
+
+#clear{
+    clear: both;
+}
+
+.MiddleBlock{
+    height: 550px;
+    width: 700px;
+    position: relative;
+
+}
+
+.ArtFuncBlock{
+    width: 64%;
+    height: 550px;
+    text-align: center;
+    border-style: solid;
+    border-color: #121212;
+    float:left;
+    position: relative;
+
+    /*display: inline-block;*/
+}
+
+.PlaylistBlock{
+    /*display: inline-block;*/
+    width: 27%;
+    height: 550px;
+    border-style: solid;
+    border-color: #121212;
+    float:left;
+    position: relative;
+
+}
+
+.ArtBlock{
+    height: 450px;
+    /*width: 448px;*/
+    border-bottom-style: solid;
+    position: relative;
+
+    background-image: url('images/cover.png');
+}
+
+.bottom-container{
+    height: 96px;
+    width: 448px;
+    position: relative;
+    border-bottom-style: solid;
+    background-color: #6B97FF;
+
+
+    /*border-style: solid;*/
+}
+
+div.control-container{
+    width:450px;
+    height:74px;
+    display:inline;
+    position: relative;
+
+
+}
+
+div.meta-container{
+    width: 350px;
+    height: 74px;
+    position: relative;
+
+    /*display: inline-block;*/
+
+}
+
+/*div.amplitude-play-pause {*/
+    /*width: 50px;*/
+    /*height: 50px;*/
+    /*cursor: pointer;*/
+    /*float: left;*/
+    /*margin-left: 10px;*/
+    /*background-color: #00a0ff;*/
+    /*position: relative;*/
+
+/*}*/
+
+/*div.song-container{*/
+    /*border-style: solid;*/
+    /*border-width: 2px;*/
+    /*height:146px;*/
+    /*width:145px;*/
+    /*display:inline-block;*/
+    /*position: relative;*/
+    /*margin-left:10px;*/
+    /*padding-left: 5px;*/
+/*}*/
+
+/*button.amplitude-play-pause.amplitude-paused{*/
+    /*background: url('./play.png');*/
+    /*background-size: cover;*/
+    /*position: relative;*/
+
+/*}*/
+
+/*button.amplitude-play-pause.amplitude-playing {*/
+    /*background: url('./pause.png');*/
+    /*background-size: cover;*/
+    /*position: relative;*/
+
+/*}*/
+
+div.song{
+    border-bottom-style: solid;
+    /*border-top-style: solid;*/
+    height: 107.5px;
+    position: relative;
+    background: url("images/cardback.png");
+    background-size: cover;
+}
+
+#fileInfoBlock{
+    border-style: solid;
+    position: relative;
+    width: 350px;
+    height: 100px;
+    margin: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.skbutton{
+    width: 75px;
+    height: 75px;
+    display: inline-block;
+    margin-top: 10px;
+}
+
+#prev{
+    background: url("images/prev.png");
+    background-size: cover;
+}
+
+#next{
+    background: url("images/next.png");
+    background-size: cover;
+}
+
+#shuffle{
+    background: url("images/shuffle.png");
+    background-size: cover;
+}
+
+#play-pause{
+    background: url("images/play.png");
+    background-size: cover;
+}
