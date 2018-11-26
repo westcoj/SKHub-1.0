@@ -52,6 +52,7 @@ class SKGUI(wx.Panel):
         self.timer.Start(100)
         self.mediaList = []
         self.playIndex = 0
+        self.isPlaying = False
         self.uri = 'http://' + self.__host + ':' + str(self.__port) + '/'
 
     def skStartup(self):
@@ -145,6 +146,7 @@ class SKGUI(wx.Panel):
 
     def skUpdateIni(self):
         '''Method to update ini'''
+        print("updating")
         try:
             config = configparser.ConfigParser()
             config['DEFAULT'] = {}
@@ -264,19 +266,16 @@ class SKGUI(wx.Panel):
                 continue
             elif (x == '_defPlaylist_OLD'):
                 continue
-
             # Append item to sub menubar
             newID = wx.Window.NewControlId()
             temp = submenu.AppendCheckItem(newID, x)
             #data = event.GetClientData()
             appendMe = (newID, x, event)
             self.keyVals.append(appendMe)
-
         rightMenu = wx.Menu()
         rightMenu.AppendSubMenu(submenu, "&Add to Playlist")
         # Bind function to it
         submenu.Bind(wx.EVT_MENU, self.menuhandler)
-
         self.mediaDisplay.PopupMenu( rightMenu, event.GetPoint() )
         rightMenu.Destroy() # destroy to avoid mem leak
 
@@ -382,7 +381,6 @@ class SKGUI(wx.Panel):
         self.frame.Bind(wx.EVT_MENU, self.skNext, nextItem)
         self.frame.Bind(wx.EVT_MENU, self.skPrev, prevItem)
 
-
     def skExitApp(self, event):
         '''Method runs when user hits close'''
         self.frame.Destroy()
@@ -390,12 +388,12 @@ class SKGUI(wx.Panel):
 
     def skEditSettings(self, event):
         # Change settings within SKSettings file
-        dlg = EditConnection(parent=self)
-        dlg.ShowModal()
-        ipAddr = dlg.resultip
-        portNum = dlg.resultport
-        print("IP ADDR: " + str(ipAddr))
-        print("PortNum: " + str(portNum))
+        print("timeout before: {0}".format(self.__timeout))
+        dlg = EditConnection(self.frame)
+        value = dlg.ShowModal()
+        print("timout after: {0}".format(self.__timeout))
+        if (value == 1):
+            self.skUpdateIni()
 
     def skSetConnection(self, event):
         '''
@@ -623,13 +621,14 @@ class SKGUI(wx.Panel):
 
     def onPause(self):
         self.mediaPlayer.Pause()
+        self.isPlaying = False
 
     def onPlay(self, event):
         """
         Plays the music
         """
         # Jamie: look into this for checking if playing
-        if not event.GetIsDown():
+        if self.isPlaying:
             self.onPause()
             return
 
@@ -638,6 +637,7 @@ class SKGUI(wx.Panel):
                           "ERROR",
                           wx.ICON_ERROR | wx.OK)
         else:
+            self.isPlaying = True
             self.mediaPlayer.SetInitialSize()
             self.GetSizer().Layout()
             self.playSlider.SetRange(0, self.mediaList[self.playIndex].time * 1000)
@@ -665,7 +665,6 @@ class SKGUI(wx.Panel):
         if (float(songMax) > float(currentTime)):
             event.Veto()
 
-
     def onSeek(self, event):
         """
         Seeks the media file according to the amount the slider has
@@ -686,6 +685,7 @@ class SKGUI(wx.Panel):
         Stops the music and resets the play button
         """
         self.mediaPlayer.Stop()
+        self.isPlaying = False
         self.playPauseBtn.SetToggle(False)
 
     def onTimer(self, event):
@@ -704,21 +704,26 @@ class MediaFrame(wx.Frame):
     def __init__(self):
         setSize = (800, 300)
         wx.Frame.__init__(self, None, wx.ID_ANY, "SounderKin 0.2", size=setSize)
-        panel = SKGUI(self)
+        self.panel = SKGUI(self)
 
-        panel.Bind(wx.EVT_KEY_DOWN, self.onChar)
+        self.panel.Bind(wx.EVT_KEY_DOWN, self.onChar)
 
         self.logo = wx.Icon(wx.Bitmap((os.path.join(bitmapDir, "logo.ico")), wx.BITMAP_TYPE_ANY))
         self.SetIcon(self.logo)
 
     def onChar(self,event):
         keycode = event.GetKeyCode()
-        if keycode == wx.WXK_LEFT:
-            self.skPrev
-        elif keycode == wx.WXK_RIGHT:
-            self.skNext
-        elif keycode == wx.WXK_SPACE:
-            # Jamie: determine if song is playing first
+        if (keycode == wx.WXK_LEFT):
+            self.panel.skPrev(self)
+            return
+        elif (keycode == wx.WXK_RIGHT):
+            self.panel.skNext(self)
+            return
+        elif (keycode == wx.WXK_SPACE):
+            if (self.panel.isPlaying == False):
+                self.panel.onPlay(self)
+            else:
+                self.panel.onPause(self)
             return
 
 ########################################################################
@@ -1128,32 +1133,50 @@ class NewConnection(wx.Dialog):
 
 class EditConnection(wx.Dialog):
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, wx.ID_ANY, "Edit Connection Settings", size=(650, 220))
+        self.parent = parent
+        self.frame = wx.Dialog.__init__(self, parent, wx.ID_ANY, "Edit Connection Settings", size=(650, 300))
         self.panel = wx.Panel(self, wx.ID_ANY)
         self.iplabel = wx.StaticText(self.panel, label="IP Address", pos=(20, 20))
-        self.ip = wx.TextCtrl(self.panel, value="", pos=(110, 20), size=(500, -1))
+        self.ip = wx.TextCtrl(self.panel, value="", pos=(150, 20), size=(400, -1))
         self.portlabel = wx.StaticText(self.panel, label="Port Number", pos=(20, 60))
-        self.port = wx.TextCtrl(self.panel, value="", pos=(110, 60), size=(500, -1))
-        self.saveButton = wx.Button(self.panel, label="OK", pos=(110, 160))
-        self.closeButton = wx.Button(self.panel, label="Cancel", pos=(210, 160))
+        self.port = wx.TextCtrl(self.panel, value="", pos=(150, 60), size=(400, -1))
+        self.serverLabel = wx.StaticText(self.panel, label="Server Directory", pos=(20, 100))
+        self.server = wx.TextCtrl(self.panel, value="", pos=(150, 100), size=(400, -1))
+        self.timeoutLabel = wx.StaticText(self.panel, label="Server Timeout", pos=(20, 140))
+        self.timeout = wx.TextCtrl(self.panel, value="", pos=(150, 140), size=(400, -1))
+        self.custServerLabel = wx.StaticText(self.panel, label="Running the server? y or n", pos=(20, 180))
+        self.custServer = wx.TextCtrl(self.panel, value="", pos=(150, 180), size=(400, -1))
+
+        self.saveButton = wx.Button(self.panel, label="OK", pos=(110, 240))
+        self.closeButton = wx.Button(self.panel, label="Cancel", pos=(210, 240))
+
         self.saveButton.Bind(wx.EVT_BUTTON, self.skSaveConn)
         self.closeButton.Bind(wx.EVT_BUTTON, self.OnQuit)
         self.Bind(wx.EVT_CLOSE, self.OnQuit)
-        # self.Show()
 
     def OnQuit(self, event):
         self.resultip = None
-        self.Destroy()
+        # self.frame.MakeModal(False)
+        # self.Destroy()
+        self.EndModal(0)
 
     def skSaveConn(self, event):
-        self.resultip = self.ip.GetValue()
-        # if self.resultip == '127.0.0.1' or self.resultip == 'localhost':
-        #     try:
-        #         self.resultip = gethostbyname(gethostname())
-        #     except Exception:
-        #         pass
-        self.resultport = self.port.GetValue()
-        self.Destroy()
+        if (self.ip.GetValue() != ""):
+            self.parent.__host = self.ip.GetValue()
+
+        if (self.port.GetValue() != ""):
+            self.parent.__port = self.port.GetValue()
+
+        if (self.custServer.GetValue() != ""):
+            self.parent.__customServer = self.custServer.GetValue()
+
+        if (self.server.GetValue() != ""):
+            self.parent.__dirLocation = self.server.GetValue()
+
+        if (self.timeout.GetValue() != ""):
+            self.parent.__timeout = self.timeout.GetValue()
+
+        self.EndModal(1)
 
 #####################################################################################
 class SKBatchFrame(wx.Dialog):
