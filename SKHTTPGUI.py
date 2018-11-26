@@ -450,12 +450,13 @@ class SKGUI(wx.Panel):
         '''
         Method for updating default display list
         '''
-        check = self.skc.skBuildDir('Users/jamiepenzien/Desktop/SKHub-1.0/directory.txt')
+        check = self.skc.skBuildDir(self.__dirLocation)
         if (check == 2):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         if(check == 1):
             wx.MessageBox("Something wen't wrong with directory building", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+            return
         self.onStop(wx.EVT_BUTTON)
         self.playIndex = 0
         self.mediaList = []
