@@ -1,7 +1,6 @@
 '''
 Created on Sep 7, 2018
-
-@author: C
+ @author: C
 '''
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -22,15 +21,12 @@ class SKHTTPServer(object):
         one allowing for console input, and another for taking in HTTP requests. Important to
         have all items that will be sent to client in file form, for if user wants to use already
         set up server. In addition admin options will be optional since there's a lack of security.
-
-
         homeDir: Grabs the working directory for future use (os.chdir is used in directory walk, meaning we need a way to return)
         port: the port the server will operate on
         path: default directory
         skFiles: List of all songs in SKFile format.
         dir: list of all songs in string format (For sending to client, probably not needed since skfiles have
          this capability)
-
         '''
         self.__homeDir = os.getcwd()
         self.__hostname = gethostbyname(gethostname())
@@ -40,11 +36,14 @@ class SKHTTPServer(object):
         self.skSetup()
         root = self.__path
         self.__SSAddress = (self.__hostname, self.__port)
+        print("hostname: {0}\nport: {1}".format(self.__hostname, self.__port))
+        print("__SSAddress: {0}".format(self.__SSAddress))
         def handler(*args):
             return SKHTTPServerHandler(self.__homeDir, self.__pubStats, *args)
         self.__homeDir = self.__homeDir + '/'
-        print("os cwd: " + self.__homeDir)
+        print("os cwd: {0}\n".format(self.__homeDir))
         self.__SS = HTTPServer(self.__SSAddress, handler)
+        print("Stopping point.")
         self.__skFiles = []
         self.__dir = self.skBuildDir(self.__path);
         self.__reset = 0
@@ -56,7 +55,6 @@ class SKHTTPServer(object):
     def skSetup(self):
         '''
         Method for reading the ini file provided to the server
-
         UPDATE: PATH CHECKING
         '''
         # Ensure path is correct
@@ -109,14 +107,11 @@ class SKHTTPServer(object):
                     print(x)
                     ipstring = ipstring + (str(x) + ',')
                 config['IPADDRS']['LIST'] = ipstring
-
                 with open('settings.ini', 'w') as iniFile:
                     config.write(iniFile)
-
             except Exception as e:
                 print(e)
                 print('Error making ini file')
-
     def skUpdateINI(self):
         # print(self.__ipList)
         os.chdir(self.__homeDir)
@@ -139,7 +134,6 @@ class SKHTTPServer(object):
             config['IPADDRS']['LIST'] = ipstring
             with open('settings.ini', 'w') as iniFile2:
                 config.write(iniFile2)
-
         except Exception as e:
             print(e)
             print('Error making ini file')
@@ -200,7 +194,6 @@ class SKHTTPServer(object):
         '''
         Method that sets the directory for the server to use. Future iterations should support
         multiple directories. This method is OS based and is assuming the user is on Windows
-
         path: The location of the directory to be used.
         '''
         retArr2 = ""
@@ -208,6 +201,7 @@ class SKHTTPServer(object):
         self.__errList = []
 
         i = 0
+        print("Arrived within BuildDir")
         for root, dirs, files in os.walk(path):
             for name in files:
                 # if(root == '.'):
@@ -248,7 +242,6 @@ class SKHTTPServer(object):
         self.skBuildDirFile()
         return retArr2
 
-
     def skBuildDirFile(self):
         '''This builds a file based off skFiles for sending to client'''
         try:
@@ -260,7 +253,6 @@ class SKHTTPServer(object):
             print('Problem building directory text')
             return 1
 
-
 class SKHTTPServerHandler(BaseHTTPRequestHandler):
     def __init__(self, root, pubStats, *args):
         self.__root = root
@@ -268,7 +260,6 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
             BaseHTTPRequestHandler.__init__(self, *args)
         except ConnectionResetError:
             return
-
 
     def do_HEAD(self):
         print(self.path)
@@ -286,7 +277,6 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
             else:
                 self.send_error(404, 'File not found')
 
-
     def do_GET(self):
         '''
         The equivalent of skclientcomm, allowing clients to get the items they need.
@@ -298,7 +288,6 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
         print("path: " + self.path)
         print(self.headers)
 
-        # print(self.path)
         try:
             if self.path.endswith('mp3'):
                 '''Send out a media file for playing/downloading'''
@@ -339,12 +328,10 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         '''Client has tagging enabled an has changed file tags'''
-
-    #
+     #
     # def log_message(self, format, *args):
     #     '''Override to stop printing to console'''
     #     return
-
 if __name__ == "__main__":
     val = 1
     while(val==1):
