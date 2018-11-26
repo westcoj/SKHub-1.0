@@ -17,27 +17,36 @@
     <Button
         android:id="@+id/updateButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="50dp"
-        android:layout_marginTop="25dp"
+        android:layout_height="53dp"
+        android:layout_marginLeft="15dp"
+        android:layout_marginTop="20dp"
         android:text="Update" />
 
     <Button
         android:id="@+id/shuffleButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="150dp"
-        android:layout_marginTop="25dp"
+        android:layout_height="53dp"
+        android:layout_marginLeft="97dp"
+        android:layout_marginTop="20dp"
         android:text="Shuffle"
         tools:text="Shuffle" />
 
     <Button
         android:id="@+id/playlistButton"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="250dp"
-        android:layout_marginTop="25dp"
+        android:layout_height="53dp"
+        android:layout_marginLeft="179dp"
+        android:layout_marginTop="20dp"
         android:text="Playlists"
         tools:text="Playlists" />
+
+    <Button
+        android:id="@+id/newPlaylistButton"
+        android:layout_width="wrap_content"
+        android:layout_height="53dp"
+        android:layout_marginLeft="268dp"
+        android:layout_marginTop="20dp"
+        android:text="NewPlaylist"
+        tools:text="New Playlist" />
 
 </FrameLayout>

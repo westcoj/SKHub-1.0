@@ -30,7 +30,7 @@ public class SKFile {
         return filePath;
     }
 
-    public int getsongIndex(){
+    public int getSongIndex(){
         return songIndex;
     }
 

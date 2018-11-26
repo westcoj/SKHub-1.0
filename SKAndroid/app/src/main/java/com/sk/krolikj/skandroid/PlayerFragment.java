@@ -67,8 +67,11 @@ public class PlayerFragment extends Fragment {
         playButton = rootView.findViewById(R.id.playButton);
         timePassedLabel = rootView.findViewById(R.id.timePassedLabel);
         timeLeftLabel = rootView.findViewById(R.id.timeLeftLabel);
+        MainActivity main = (MainActivity)getActivity();
 
-        mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
+        //mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
+        mp = MediaPlayer.create(getActivity().getBaseContext(), Uri.fromFile(main.getSong()));
+        System.out.println(main.getSong());
         mp.setLooping(true);
         mp.seekTo(0);
         mp.setVolume(0.5f, 0.5f);

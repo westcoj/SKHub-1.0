@@ -15,6 +15,23 @@
         tools:allign="8dp"
         tools:layout_editor_absoluteY="8dp">
 
+        <ImageView
+            android:id="@+id/Logo"
+            android:layout_width="138dp"
+            android:layout_height="270dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="30dp"
+            android:src="@drawable/logo" />
+
+        <ImageView
+            android:id="@+id/SounderKin"
+            android:layout_width="252dp"
+            android:layout_height="191dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="50dp"
+            android:src="@drawable/sounderkin" />
+
+
     </FrameLayout>
 
     <android.support.design.widget.BottomNavigationView

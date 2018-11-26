@@ -1,26 +1,45 @@
 package com.sk.krolikj.skandroid;
 
+import android.app.AlertDialog;
 import android.content.Context;
-import android.content.Intent;
+import android.content.DialogInterface;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.Socket;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 
@@ -45,16 +64,25 @@ public class HomeFragment extends Fragment {
     private int portNum;
     private String hostName;
     private String dirPath;
+    private String playlistName;
     private boolean sockStatus;
     private Socket sock;
     private DataInputStream dIS;
     private DataOutputStream dOS;
     private String[] directory;
     private ArrayList<SKFile> skFile;
+    private ArrayList<SKFile> skLibrary;
     private Context appContext;
     private ArrayList<SKFile> cache;
     private final static int CACHEMAX = 5;
     private Button updateButton;
+    private Button shuffleButton;
+    private Button playlistButton;
+    private Button newPlaylistButton;
+    private int index;
+    private String songPath;
+    private SKMedia skm;
+    File songFile = new File("temp");
 
 
     private OnFragmentInteractionListener mListener;
@@ -84,70 +112,312 @@ public class HomeFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-//        if (getArguments() != null) {
-//            mParam1 = getArguments().getString(ARG_PARAM1);
-//            mParam2 = getArguments().getString(ARG_PARAM2);
-//        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         final View rootView = inflater.inflate(R.layout.fragment_home, container, false);
-        MainActivity main = (MainActivity)getActivity();
-        String value = main.getHostPort();
+        final MainActivity main = (MainActivity)getActivity();
+
+        ImageView logo = main.findViewById(R.id.Logo);
+        ImageView sounderkin = main.findViewById(R.id.SounderKin);
+        logo.setVisibility(View.GONE);
+        sounderkin.setVisibility(View.GONE);
+
+        skm = new SKMedia(getContext());
+        skm.createDb();
+
         listView = rootView.findViewById(R.id.my_listview);
+
         updateButton = rootView.findViewById(R.id.updateButton);
-        System.out.println(updateButton);
+        shuffleButton = rootView.findViewById(R.id.shuffleButton);
+        playlistButton = rootView.findViewById(R.id.playlistButton);
+        newPlaylistButton = rootView.findViewById(R.id.newPlaylistButton);
+
+        /***************************************
+        String config = main.getHostPort();
+        String[] str = config.split("/");
+        hostName = str[0];
+        portNum = Integer.parseInt(str[1]);
+         ***************************************/
+        hostName = "192.168.1.78";
+        portNum = 9222;
+        skFile = new ArrayList<>();
+
 
         View.OnClickListener updateClick = new View.OnClickListener() {
             @Override
             public void onClick(View v){
-//                String value[] = getArguments().getStringArray("network");
-//                hostName = value[0];
-//                portNum = Integer.parseInt(value[1]);
-                MainActivity main = (MainActivity)getActivity();
-                String config = main.getHostPort();
-                String[] str = config.split("/");
-                hostName = str[0];
-                portNum = Integer.parseInt(str[1]);
-                skFile = new ArrayList<SKFile>();
+//                String config = main.getHostPort();
+                dirPath = main.getDirectoryPath();
+                cache = main.getCache();
+//                String[] str = config.split("/");
+//                hostName = str[0];
+//                portNum = Integer.parseInt(str[1]);
+//                skFile = new ArrayList<SKFile>();
                 System.out.println(hostName + "/" + portNum);
                 try {
                     new HomeFragment.UpdateTask().execute().get();
                 }catch(InterruptedException | ExecutionException ex){
                     ex.printStackTrace();
                 }
-                for(SKFile x: skFile){
-                    System.out.println(x.getSongTitle());
-                }
+
+                main.setFullLibrary(skFile);
+                main.setSkFile(skFile);
                 ListAdapter adapter = new ListAdapter(getActivity(), skFile);
                 listView.setAdapter(adapter);
+
+                /************************************************************************************
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        index = skFile.get(position).getSongIndex();
+                        try {
+                            new HomeFragment.PlaySong().execute().get();
+                        }catch(InterruptedException | ExecutionException ex){
+                            ex.printStackTrace();
+                        }
+
+                        main.setSong(songFile);
+                        System.out.println(main.getSong());
+                        final FragmentTransaction ft = getFragmentManager().beginTransaction();
+                        ft.replace(R.id.mainFrame, new PlayerFragment());
+                        ft.commit();
+                    }
+                });
+                ************************************************************************************/
             }
         };
-        System.out.println(updateClick);
+
+        View.OnClickListener shuffleClick = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                skFile = shuffle(skFile);
+                main.setSkFile(skFile);
+                ListAdapter adapter = new ListAdapter(getActivity(), skFile);
+                listView.setAdapter(adapter);
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        index = skFile.get(position).getSongIndex();
+                        try {
+                            new HomeFragment.PlaySong().execute().get();
+                        }catch(InterruptedException | ExecutionException ex){
+                            ex.printStackTrace();
+                        }
+                        for(SKFile x: cache){
+                            System.out.println(x.getSongTitle());
+                        }
+                        main.setSong(songFile);
+                        System.out.println(main.getSong());
+                        final FragmentTransaction ft = getFragmentManager().beginTransaction();
+                        ft.replace(R.id.mainFrame, new PlayerFragment());
+                        ft.commit();
+                    }
+                });
+            }
+        };
+
+        View.OnClickListener playlistClick = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final ArrayList<SKFile> tempList = skm.dbGetAll();
+                ListAdapter adapter = new ListAdapter(getActivity(), tempList);
+                listView.setAdapter(adapter);
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        skFile.clear();
+                        skFile = skm.getDataBaseList(tempList.get(position).getFilePath());
+                        final ListAdapter songAdapter = new ListAdapter(getActivity(), skFile);
+                        listView.setAdapter(songAdapter);
+                        for(SKFile x : skFile) {
+                            System.out.println(x.getFilePath());
+                        }
+                        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                            @Override
+                            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                index = skFile.get(position).getSongIndex();
+                                File sFile = new File(getActivity().getFilesDir() + "/" + skFile.get(position).getFilePath());
+                                try {
+                                    new HomeFragment.PlaySong().execute().get();
+                                }catch(InterruptedException | ExecutionException ex){
+                                    ex.printStackTrace();
+                                }
+
+                                main.setSong(sFile);
+                                System.out.println(main.getSong());
+                                final FragmentTransaction ft = getFragmentManager().beginTransaction();
+                                ft.replace(R.id.mainFrame, new PlayerFragment());
+                                ft.commit();
+                            }
+                        });
+                    }
+                });
+            }
+        };
+
+        View.OnClickListener newPlaylistClick = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setTitle("Input Playlist Name");
+                final EditText input = new EditText(getActivity());
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                builder.setView(input);
+
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        playlistName = input.getText().toString();
+                        try {
+                            new HomeFragment.UpdateTask().execute().get();
+                        }catch(InterruptedException | ExecutionException ex){
+                            ex.printStackTrace();
+                        }
+                        skm.dbNewList(playlistName);
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+                builder.show();
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+//                        int num = 0;
+//                        if(num == 0){
+//                            skm.dbNewList(playlistName, skFile.get(position));
+//                            num++;
+//                        }else {
+                            skm.dbUpdateList(1, playlistName, skFile.get(position));
+//                        }
+                    }
+                });
+            }
+        };
+
+        shuffleButton.setOnClickListener(shuffleClick);
         updateButton.setOnClickListener(updateClick);
-//        updateButton.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                String ipNum = "192.168.1.78";
-//                String port = "9222";
-//                hostName = ipNum;
-//                portNum = Integer.parseInt(port);
-//                System.out.println(hostName + "/" + portNum);
-//                new HomeFragment.UpdateTask().execute();
-//                ListAdapter adapter = new ListAdapter(getActivity(), skFile);
-//                listView.setAdapter(adapter);
-//            }
-//        });
+        playlistButton.setOnClickListener(playlistClick);
+        newPlaylistButton.setOnClickListener(newPlaylistClick);
 
         return rootView;
+    }
+
+    public void showDisplay(){
+
     }
 
     public void skSetIpHost(String host, int port){
         hostName = host;
         portNum = port;
         Log.d("IP/HOST", hostName + "/" + portNum);
+    }
+
+    public int checkFile(int index){
+        MainActivity main = (MainActivity)getActivity();
+        SKFile sk = skFile.get(index);
+        try{
+            URL url = new URL(main.getURL() + sk.getFilePath());
+            HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+            conn.setRequestMethod("HEAD");
+            if(conn.getResponseCode() == HttpURLConnection.HTTP_OK){
+                conn.getInputStream().close();
+                return 0;
+            }else{
+                conn.getInputStream().close();
+                return 1;
+            }
+        }catch(IOException e){
+            e.printStackTrace();
+            return 2;
+        }
+    }
+
+    public ArrayList<SKFile> shuffle(ArrayList<SKFile> list){
+        Collections.shuffle(list);
+        return list;
+    }
+
+    public int buildLibrary(String path){
+        HttpURLConnection conn = null;
+        MainActivity main = (MainActivity)getActivity();
+        byte[] buffer = new byte[4096];
+        int bytesRead;
+        int fileLength;
+
+        try {
+            URL tempUrl = new URL(main.getURL() + "C:/Users/sd56f/Documents/CIS457/CurrentProject/directory.txt");
+            conn = (HttpURLConnection)tempUrl.openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.connect();
+
+//            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+//                System.out.println("Server returned HTTP " + conn.getResponseCode()
+//                        + " " + conn.getResponseMessage());
+//            }else{
+//                System.out.println("All bueno");
+//            }
+
+            System.out.println(tempUrl);
+
+            InputStream input = conn.getInputStream();
+            FileOutputStream fOS = new FileOutputStream(appContext.getFilesDir() + "/directory.txt");
+
+            long total = 0;
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                total += count;
+                fOS.write(buffer, 0, count);
+            }
+//            while ((bytesRead = input.read(buffer, 0, 1024)) != -1) {
+//                fOS.write(buffer, 0, bytesRead);
+//            }
+            System.out.println("File Downloaded");
+        }catch(IOException e){
+            e.printStackTrace();
+            return 1;
+        }
+
+        try {
+            FileReader fr = new FileReader("directory.txt");
+            BufferedReader br = new BufferedReader(fr);
+            List<String> lines = new ArrayList<>();
+            String line = null;
+            while ((line = br.readLine()) != null) {
+                lines.add(line);
+                System.out.println(line);
+            }
+            br.close();
+            directory = lines.toArray(new String[lines.size()]);
+        }catch(IOException e){
+            e.printStackTrace();
+            return 2;
+        }
+
+        for(String x : directory){
+            String[] skData = x.split("&%&");
+            SKFile skf = new SKFile(skData[0], Integer.parseInt(skData[1]), skData[2], skData[3], skData[4]);
+            skFile.add(skf);
+        }
+        return 0;
+
+//        try{
+//            URL url =  new URL(main.getURL() + path);
+//            HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+//            conn.setRequestMethod("HEAD");
+//            int fileSize = conn.getContentLength();
+//        }catch(IOException e){
+//            e.printStackTrace();
+//        }
+//        int currentFileSize = outputFile.length();
+
     }
 
     private int skOpen(){
@@ -200,13 +470,14 @@ public class HomeFragment extends Fragment {
         byte[] buffer = new byte[length];
         try {
             //DataInputStream is = new DataInputStream(sock.getInputStream());
-            if(dIS.read(buffer) < buffer.length) {
-                dIS.read(buffer);
-            }
+            dIS.readFully(buffer);
+//            if(dIS.read(buffer) < buffer.length) {
+//                System.out.println(dIS.read(buffer));
+//            }
             //Log.d("RECEIVE", new String(buffer));
             //is.close();
         }catch(IOException e){
-            Log.e("RECEIVE", e.toString());
+            e.printStackTrace();
         }
         return buffer;
     }
@@ -243,37 +514,44 @@ public class HomeFragment extends Fragment {
     }
 
     public int skRCVFileIndex(int index) throws IOException{
-        String name = "";
+        String name ;
         String path = "";
         byte[] fileData;
-        SKFile file;
-        //Path p;
 
+        MainActivity main = (MainActivity)getActivity();
         if(!sockStatus){
             skOpen();
         }
         skSend(Integer.toString(index));
         fileData = skRecieve();
         try{
-            name = skFile.get(index).getsongIndex() + ".mp3";
+            name = main.getFullLibrary().get(index).getSongIndex() + ".mp3";
+            songPath = name;
+            songFile = new File(getActivity().getFilesDir(), name);
+            try {
+                Log.i("FILEPATH", "Path: " + songFile.getCanonicalPath());
+            }catch(IOException e){
+                e.printStackTrace();
+            }
         }catch(Exception e) {
-            Log.e("NAMING", e.toString());
+           e.printStackTrace();
         }
         Log.d("FILE DATA", fileData.length + "");
         if(fileData.length != 0){
-            path = dirPath + "\\" + name;
+            //songPath = dirPath + "\\" + name;
 //            p = Paths.get(dirPath + name);
 //            if(Files.notExists(p)){
 //                new File(path).mkdirs();
 //            }
-            FileOutputStream fos = new FileOutputStream(path);
+            FileOutputStream fos = new FileOutputStream(songFile);
             fos.write(fileData);
+            System.out.println(songFile);
             fos.close();
             skFile.get(index).skAddPath(path);
-            if(cache.size() > CACHEMAX){
-                file = cache.remove(0);
-                appContext.deleteFile(file.getCachePath());
-            }
+//            if (cache.size() > CACHEMAX) {
+//                file = cache.remove(0);
+//                appContext.deleteFile(file.getCachePath());
+//            }
             cache.add(skFile.get(index));
             skClose();
             return 0;
@@ -300,6 +578,7 @@ public class HomeFragment extends Fragment {
             dataString = new String(data);
             //System.out.println(dataString);
             directory = dataString.split("\n");
+            skFile.clear();
             for(String x: directory){
                 skData = x.split("&%&");
                 //System.out.println(x);
@@ -334,20 +613,34 @@ public class HomeFragment extends Fragment {
             skSetIpHost(hostName, portNum);
             //skOpen();
             //System.out.println(dirPath);
-            try {
+            try{
                 userComm("update");
-                skUIFile(0);
-            } catch (IOException e) {
-                Log.e("UIFILE", e.toString());
+                //buildLibrary("");
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+//                userComm("update");
+                //skUIFile(0);
+            return null;
+        }
+
+//        protected Void onPostExecute(long result){
+//            return null;
+//        }
+    }
+
+    private class PlaySong extends AsyncTask<Void, Void, Void>{
+
+        @Override
+        protected Void doInBackground(Void... params){
+            try{
+                skUIFile(index);
+            }catch(IOException e){
+                e.printStackTrace();
             }
             return null;
         }
-
-        protected Void onPostExecute(long result){
-            return null;
-        }
     }
-
     // TODO: Rename method, update argument and hook method into UI event
 //    public void onButtonPressed(Uri uri) {
 //        if (mListener != null) {
