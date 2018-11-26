@@ -148,15 +148,7 @@ public class SKMedia {
             insertVals.put("artist", songArray[3]);
             insertVals.put("album", songArray[4]);
             db.insert(scrubName(name), null, insertVals);
-            //db.rawQuery(add, songArray);
-//            try {
-//                Statement stm = conn.createStatement();
-//                stm.execute(add);
-//                conn.commit();
-//                conn.close();
-//            } catch (SQLException e) {
-//                e.getErrorCode();
-//            }
+
         } else {
 //            try {
 //                Statement stm = conn.createStatement();

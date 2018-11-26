@@ -141,10 +141,43 @@ public class HomeFragment extends Fragment {
         hostName = str[0];
         portNum = Integer.parseInt(str[1]);
          ***************************************/
-        hostName = "192.168.1.78";
+        hostName = "35.40.124.176";
         portNum = 9222;
         skFile = new ArrayList<>();
 
+        if(hostName != null) {
+            dirPath = main.getDirectoryPath();
+            cache = main.getCache();
+
+            try {
+                new HomeFragment.UpdateTask().execute().get();
+            } catch (InterruptedException | ExecutionException ex) {
+                ex.printStackTrace();
+            }
+
+            main.setFullLibrary(skFile);
+            main.setSkFile(skFile);
+            ListAdapter adapter = new ListAdapter(getActivity(), skFile);
+            listView.setAdapter(adapter);
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                    index = skFile.get(position).getSongIndex();
+                    main.setSongData(skFile.get(position));
+                    try {
+                        new HomeFragment.PlaySong().execute().get();
+                    }catch(InterruptedException | ExecutionException ex){
+                        ex.printStackTrace();
+                    }
+
+                    main.setSong(songFile);
+                    System.out.println(main.getSong());
+                    final FragmentTransaction ft = getFragmentManager().beginTransaction();
+                    ft.replace(R.id.mainFrame, new PlayerFragment());
+                    ft.commit();
+                }
+            });
+        }
 
         View.OnClickListener updateClick = new View.OnClickListener() {
             @Override
@@ -168,7 +201,6 @@ public class HomeFragment extends Fragment {
                 ListAdapter adapter = new ListAdapter(getActivity(), skFile);
                 listView.setAdapter(adapter);
 
-                /************************************************************************************
                 listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -186,7 +218,6 @@ public class HomeFragment extends Fragment {
                         ft.commit();
                     }
                 });
-                ************************************************************************************/
             }
         };
 
@@ -235,6 +266,7 @@ public class HomeFragment extends Fragment {
                         for(SKFile x : skFile) {
                             System.out.println(x.getFilePath());
                         }
+                        /**************************************************************************
                         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                             @Override
                             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -253,6 +285,7 @@ public class HomeFragment extends Fragment {
                                 ft.commit();
                             }
                         });
+                         **************************************************************************/
                     }
                 });
             }

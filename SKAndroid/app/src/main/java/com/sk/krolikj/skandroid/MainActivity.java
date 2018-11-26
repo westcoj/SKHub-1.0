@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private URL theUrl;
     private String theHostName;
     private String thePortNum;
+    private SKFile songPlaying;
     private File song;
     private TextView mTextMessage;
     private int portNum;
@@ -129,6 +130,14 @@ public class MainActivity extends AppCompatActivity {
         theHostName = host;
         thePortNum = Integer.toString(port);
         //Log.d("IP/HOST", hostName + "/" + portNum);
+    }
+
+    public SKFile getSongData(){
+        return songPlaying;
+    }
+
+    public void setSongData(SKFile sk){
+        songPlaying = sk;
     }
 
 //

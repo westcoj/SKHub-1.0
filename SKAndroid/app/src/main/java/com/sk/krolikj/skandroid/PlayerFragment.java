@@ -21,7 +21,9 @@ public class PlayerFragment extends Fragment {
     SeekBar volumeBar;
     TextView timePassedLabel;
     TextView timeLeftLabel;
+    TextView songName;
     MediaPlayer mp;
+    private SKFile skf;
     int songLength;
     final static String ARG_POSITION = "position";
     int mCurrentPosition = -1;
@@ -67,7 +69,10 @@ public class PlayerFragment extends Fragment {
         playButton = rootView.findViewById(R.id.playButton);
         timePassedLabel = rootView.findViewById(R.id.timePassedLabel);
         timeLeftLabel = rootView.findViewById(R.id.timeLeftLabel);
+        songName = rootView.findViewById(R.id.songName);
         MainActivity main = (MainActivity)getActivity();
+        skf = main.getSongData();
+        songName.setText(skf.getSongTitle());
 
         //mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
         mp = MediaPlayer.create(getActivity().getBaseContext(), Uri.fromFile(main.getSong()));
