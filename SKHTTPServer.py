@@ -1,7 +1,7 @@
 '''
 Created on Sep 7, 2018
 
-@author: C
+@author: Cody
 '''
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -198,6 +198,7 @@ class SKHTTPServer(object):
 
         path: The location of the directory to be used.
         '''
+        # print(path)
         retArr2 = ""
         self.__skFiles = []
         self.__errList = []
@@ -281,6 +282,11 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
                 return
             else:
                 self.send_error(404, 'File not found')
+        elif self.path.endswith('hello'):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            return
 
 
     def do_GET(self):

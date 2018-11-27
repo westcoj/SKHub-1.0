@@ -1,7 +1,7 @@
 '''
 Created on Sep 6, 2018
 
-@author: C
+@author: Cody
 '''
 import struct
 import requests
@@ -62,10 +62,10 @@ class SKHTTPClient(object):
         Method for testing if connection is valid
         '''
         try:
-            r = requests.head(self.__url, timeout=self.__timeout)
-            return 0
+            r = requests.head((self.__url + 'hello'), timeout=self.__timeout)
+            return 0 #Connection exists
         except requests.RequestException:
-            return 1
+            return 1 #No connection
 
     def skCheckFile(self, index):
         '''

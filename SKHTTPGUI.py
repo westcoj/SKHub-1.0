@@ -388,10 +388,10 @@ class SKGUI(wx.Panel):
 
     def skEditSettings(self, event):
         # Change settings within SKSettings file
-        print("timeout before: {0}".format(self.__timeout))
+        # print("timeout before: {0}".format(self.__timeout))
         dlg = EditConnection(self.frame)
         value = dlg.ShowModal()
-        print("timout after: {0}".format(self.__timeout))
+        # print("timout after: {0}".format(self.__timeout))
         if (value == 1):
             self.skUpdateIni()
 
@@ -421,6 +421,7 @@ class SKGUI(wx.Panel):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
+
 
     def skBatchDownload(self, event):
         batchFrame = SKBatchFrame(self.mediaManager)
@@ -624,9 +625,12 @@ class SKGUI(wx.Panel):
         self.mediaPlayer.Pause()
         self.isPlaying = False
 
+
+
     def onPlay(self, event):
         """
         Plays the music
+        Needs to be rewritten so that it either plays or pauses
         """
         # Jamie: look into this for checking if playing
         if self.isPlaying:
@@ -644,7 +648,7 @@ class SKGUI(wx.Panel):
             self.playSlider.SetRange(0, self.mediaList[self.playIndex].time * 1000)
             # self.playSlider.SetRange(0, self.mediaPlayer.Length())
 
-        event.Skip()
+        # event.Skip()
 
     def loadPlay(self, event):
         '''
@@ -704,15 +708,16 @@ class SKGUI(wx.Panel):
 class MediaFrame(wx.Frame):
     def __init__(self):
         setSize = (800, 300)
-        wx.Frame.__init__(self, None, wx.ID_ANY, "SounderKin 0.2", size=setSize)
+        wx.Frame.__init__(self, None, wx.ID_ANY, "SounderKin 1.3", size=setSize)
         self.panel = SKGUI(self)
 
-        self.panel.Bind(wx.EVT_KEY_DOWN, self.onChar)
+        self.panel.Bind(wx.EVT_CHAR_HOOK, self.onChar)
 
         self.logo = wx.Icon(wx.Bitmap((os.path.join(bitmapDir, "logo.ico")), wx.BITMAP_TYPE_ANY))
         self.SetIcon(self.logo)
 
     def onChar(self,event):
+        print(event.GetKeyCode())
         keycode = event.GetKeyCode()
         if (keycode == wx.WXK_LEFT):
             self.panel.skPrev(self)
@@ -721,11 +726,9 @@ class MediaFrame(wx.Frame):
             self.panel.skNext(self)
             return
         elif (keycode == wx.WXK_SPACE):
-            if (self.panel.isPlaying == False):
-                self.panel.onPlay(self)
-            else:
-                self.panel.onPause(self)
-            return
+            self.panel.onPlay(self)
+        else:
+            event.Skip()
 
 ########################################################################
 class SKListFrame(wx.Frame):
@@ -1125,9 +1128,12 @@ class NewConnection(wx.Dialog):
         if self.resultip == '127.0.0.1' or self.resultip == 'localhost':
             try:
                 self.resultip = gethostbyname(gethostname())
-            except Exception:
+            except Exception as e:
+                print(e)
                 pass
         self.resultport = self.port.GetValue()
+        print(self.resultip)
+        print(self.resultport)
         self.Destroy()
 
 #####################################################################################
@@ -1162,6 +1168,7 @@ class EditConnection(wx.Dialog):
         self.EndModal(0)
 
     def skSaveConn(self, event):
+        '''No error checking?'''
         if (self.ip.GetValue() != ""):
             self.parent.__host = self.ip.GetValue()
 
