@@ -77,7 +77,7 @@ class SKGUI(wx.Panel):
                 # self.__admPass = config['DEFAULT']['AdminPassword']
                 return SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout)
             except Exception as e:
-                wx.MessageBox('Issue with INI file, please check settings', 'INI File', wx.ICON_EXCLAMATION)
+                wx.MessageBox('Issue with INI file, please check settings, set to default', 'INI File', wx.ICON_EXCLAMATION)
                 return SKHTTPClient(80, '127.0.0.1', 0, .5)
 
         else:
@@ -215,6 +215,8 @@ class SKGUI(wx.Panel):
 
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.skGetFile, self.mediaDisplay)
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.skSongRightClick, self.mediaDisplay)
+        self.mediaDisplay.Bind(wx.EVT_CHAR, self.onChar)
+
 
 
         self.logo = wx.StaticBitmap(self,
@@ -222,6 +224,8 @@ class SKGUI(wx.Panel):
 
         self.hideButton = wx.Button(self, id=wx.ID_ANY, label='Hide List')
         self.hideButton.Bind(wx.EVT_BUTTON, self.onButton)
+        self.hideButton.Bind(wx.EVT_SET_FOCUS, (lambda: 'ignore focus'))
+
 
         mainSizer = wx.BoxSizer(wx.VERTICAL)
         hSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -245,6 +249,9 @@ class SKGUI(wx.Panel):
         self.SetSizer(topSizer)
         self.Layout()
 
+        self.frame.Bind(wx.EVT_CHAR_HOOK, self.onChar)
+
+
         return 0
 
     def onButton(self, event):
@@ -257,6 +264,21 @@ class SKGUI(wx.Panel):
             button.SetLabel('Show List')
             self.mediaDisplay.Hide()
             self.frame.SetSize(335, 300)
+
+    def onChar(self, event):
+        # print(event.GetKeyCode())
+        keycode = event.GetKeyCode()
+        if (keycode == wx.WXK_LEFT):
+            self.skPrev(self)
+            return
+        elif (keycode == wx.WXK_RIGHT):
+            self.skNext(self)
+            return
+        elif (keycode == wx.WXK_SPACE):
+            self.onPlay(self)
+            return
+        else:
+            event.Skip()
 
     def skSongRightClick(self, event):
         submenu = wx.Menu()
@@ -309,15 +331,17 @@ class SKGUI(wx.Panel):
 
         # create play/pause toggle button
         img = wx.Bitmap(os.path.join(bitmapDir, "play.png"))
-        self.playPauseBtn = buttons.GenBitmapToggleButton(self, bitmap=img, name="play")
+        self.playPauseBtn = wx.lib.buttons.GenBitmapToggleButton(self, bitmap=img, name="play")
         # self.playPauseBtn = AB.AquaButton(self, bitmap=img)
         self.playPauseBtn.Enable(False)
-
         img = wx.Bitmap(os.path.join(bitmapDir, "pause.png"))
         self.playPauseBtn.SetBitmapSelected(img)
         self.playPauseBtn.SetInitialSize()
-
         self.playPauseBtn.Bind(wx.EVT_BUTTON, self.onPlay)
+        self.playPauseBtn.Bind(wx.EVT_SET_FOCUS, (lambda x: 'ignore focus'))
+
+
+
         audioBarSizer.Add(self.playPauseBtn, 0, wx.LEFT, 3)
 
         btnData = [{'bitmap': 'stop.png',
@@ -326,7 +350,6 @@ class SKGUI(wx.Panel):
                     'handler': self.skNext, 'name': 'next'}]
         for btn in btnData:
             self.buildBtn(btn, audioBarSizer)
-
         return audioBarSizer
 
     def buildBtn(self, btnDict, sizer):
@@ -340,6 +363,8 @@ class SKGUI(wx.Panel):
         btn = buttons.GenBitmapButton(self, bitmap=img, name=btnDict['name'])
         btn.SetInitialSize()
         btn.Bind(wx.EVT_BUTTON, handler)
+        btn.Bind(wx.EVT_SET_FOCUS, (lambda x: 'ignore focus'))
+
         sizer.Add(btn, 0, wx.LEFT, 3)
 
     def createMenu(self):
@@ -362,8 +387,7 @@ class SKGUI(wx.Panel):
         menubar.Append(mediaMenu, '&Media')
 
         controlMenu = wx.Menu()
-        playItem = controlMenu.Append(wx.Window.NewControlId(), "&Play Song        Space", "Play Song")
-        pauseItem = controlMenu.Append(wx.Window.NewControlId(), "&Pause Song     Space", "Pause Song")
+        playItem = controlMenu.Append(wx.Window.NewControlId(), "&Play/Pause Song        Space", "Play/Pause Song")
         nextItem = controlMenu.Append(wx.Window.NewControlId(), "&Next Song               >", "Next Song")
         prevItem = controlMenu.Append(wx.Window.NewControlId(), "&Previous Song         <", "Previous Song")
         menubar.Append(controlMenu, '&Controls')
@@ -377,7 +401,6 @@ class SKGUI(wx.Panel):
         self.frame.Bind(wx.EVT_MENU, self.skShuffleList, shuffleItem)
         self.frame.Bind(wx.EVT_MENU, self.skBatchDownload, batchItem)
         self.frame.Bind(wx.EVT_MENU, self.onPlay, playItem)
-        self.frame.Bind(wx.EVT_MENU, self.onPause, pauseItem)
         self.frame.Bind(wx.EVT_MENU, self.skNext, nextItem)
         self.frame.Bind(wx.EVT_MENU, self.skPrev, prevItem)
 
@@ -422,7 +445,6 @@ class SKGUI(wx.Panel):
             return
         wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
 
-
     def skBatchDownload(self, event):
         batchFrame = SKBatchFrame(self.mediaManager)
         batchFrame.ShowModal()
@@ -446,6 +468,7 @@ class SKGUI(wx.Panel):
                     break
         else:
             return
+        return
 
     def skGetList(self, event):
         '''
@@ -494,6 +517,7 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.SetItemData(i, int(x.index))
             i += 1
         self.playIndex = 0
+        self.mediaDisplay.SetFocus()
         event.Skip()
 
     def skSortList(self, event):
@@ -518,6 +542,8 @@ class SKGUI(wx.Panel):
             self.mediaList.append(x)
             i += 1
         self.playIndex = 0
+        self.mediaDisplay.SetFocus()
+
 
     def skGetFile(self, event):
         '''
@@ -597,6 +623,7 @@ class SKGUI(wx.Panel):
         self.mediaDisplay.SetItemState(self.playIndex + 1, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
         self.currentSong = index
         self.playIndex += 1
+
         # else:
         #     wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",
         #                   wx.ICON_EXCLAMATION | wx.OK)
@@ -617,6 +644,7 @@ class SKGUI(wx.Panel):
         self.mediaDisplay.Select(self.playIndex - 1, True)
         self.currentSong = index
         self.playIndex -= 1
+
         # else:
         #     wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index], "ERROR",
         #                   wx.ICON_EXCLAMATION | wx.OK)
@@ -624,8 +652,6 @@ class SKGUI(wx.Panel):
     def onPause(self):
         self.mediaPlayer.Pause()
         self.isPlaying = False
-
-
 
     def onPlay(self, event):
         """
@@ -635,7 +661,11 @@ class SKGUI(wx.Panel):
         # Jamie: look into this for checking if playing
         if self.isPlaying:
             self.onPause()
+            self.playPauseBtn.SetToggle(False)
             return
+
+        else:
+            self.playPauseBtn.SetToggle(True)
 
         if not self.mediaPlayer.Play():
             wx.MessageBox("Unable to Play media : Unsupported format?",
@@ -659,6 +689,7 @@ class SKGUI(wx.Panel):
         # self.GetSizer().Layout()
         # self.playSlider.SetRange(0, self.mediaList[self.playIndex].time*1000)
         # self.playSlider.SetRange(0, self.mediaPlayer.Length())
+        self.isPlaying = True
         self.playPauseBtn.SetValue(True)
 
     def skCheckMedia(self, event):
@@ -711,24 +742,25 @@ class MediaFrame(wx.Frame):
         wx.Frame.__init__(self, None, wx.ID_ANY, "SounderKin 1.3", size=setSize)
         self.panel = SKGUI(self)
 
-        self.panel.Bind(wx.EVT_CHAR_HOOK, self.onChar)
+        # self.panel.Bind(wx.EVT_CHAR_HOOK, self.onChar)
 
         self.logo = wx.Icon(wx.Bitmap((os.path.join(bitmapDir, "logo.ico")), wx.BITMAP_TYPE_ANY))
         self.SetIcon(self.logo)
 
-    def onChar(self,event):
-        print(event.GetKeyCode())
-        keycode = event.GetKeyCode()
-        if (keycode == wx.WXK_LEFT):
-            self.panel.skPrev(self)
-            return
-        elif (keycode == wx.WXK_RIGHT):
-            self.panel.skNext(self)
-            return
-        elif (keycode == wx.WXK_SPACE):
-            self.panel.onPlay(self)
-        else:
-            event.Skip()
+    # def onChar(self,event):
+    #     print(event.GetKeyCode())
+    #     keycode = event.GetKeyCode()
+    #     if (keycode == wx.WXK_LEFT):
+    #         self.panel.skPrev(self)
+    #         return
+    #     elif (keycode == wx.WXK_RIGHT):
+    #         self.panel.skNext(self)
+    #         return
+    #     elif (keycode == wx.WXK_SPACE):
+    #         self.panel.onPlay(self)
+    #         return
+        # else:
+            # event.Skip()
 
 ########################################################################
 class SKListFrame(wx.Frame):
