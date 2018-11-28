@@ -99,14 +99,14 @@ class SKHTTPClient(object):
             if(r.headers.get('content-type')=='text/html'):
                 return 3
         except Exception as e:
-            print(e)
+            # print(e)
             return 2 #Can't contact server
         if(r.status_code==200):
             try:
                 with open("serverdirectory.txt", "wb") as text_file:
                     text_file.write(r.content)
             except Exception as e:
-                print(e)
+                # print(e)
                 #Issue creating server directory
                 return 1
         else:
@@ -115,7 +115,7 @@ class SKHTTPClient(object):
             with open("serverdirectory.txt", 'r', encoding='utf-8') as text_file:
                 self.__dir = text_file.readlines()
         except Exception as e:
-            print(e)
+            # print(e)
             return 1
         try:
             self.__dir.pop()
@@ -179,7 +179,7 @@ class SKHTTPClient(object):
 
     def skTestSend(self):
         r = requests.get(self.__url + 'directory.txt', auth=HTTPBasicAuth('James','followme') ,timeout=self.__timeout)
-        print(r.text)
+        # print(r.text)
 
     def skUserComm(self, command):
         '''
@@ -199,7 +199,7 @@ class SKHTTPClient(object):
 if __name__ == "__main__":
     ClientK = SKHTTPClient(65535, '184.75.148.148')
     val = ClientK.skTestConnection()
-    print(val)
+    # print(val)
     ClientK.skTestSend()
     # ClientK.skBuildDir("E:/Code2/PyCharm/Projects/SK1.2/venv/directory.txt")
     # ClientK.skCheckFile(10)

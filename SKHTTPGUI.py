@@ -54,6 +54,7 @@ class SKGUI(wx.Panel):
         self.playIndex = 0
         self.isPlaying = False
         self.uri = 'http://' + self.__host + ':' + str(self.__port) + '/'
+        self.playReady = False;
 
     def skStartup(self):
         '''
@@ -412,11 +413,36 @@ class SKGUI(wx.Panel):
     def skEditSettings(self, event):
         # Change settings within SKSettings file
         # print("timeout before: {0}".format(self.__timeout))
-        dlg = EditConnection(self.frame)
-        value = dlg.ShowModal()
+        dlg = EditConnection(self, self.__host, self.__port, self.__dirLocation, self.__customServer, self.__timeout )
+        dlg.ShowModal()
         # print("timout after: {0}".format(self.__timeout))
-        if (value == 1):
-            self.skUpdateIni()
+        if dlg.resultip:
+            if dlg.resultip != 'bad':
+                self.__host = dlg.resultip
+                self.__port = dlg.resultport
+                self.__timeout = dlg.resulttime
+                self.__customServer = dlg.resultcustom
+                self.__dirLocation = dlg.resultdir
+            else:
+                wx.MessageBox("Invalid Settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+
+        else:
+            dlg.Destroy()
+            return
+
+        dlg.Destroy()
+        self.skc = SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout);
+        self.connected = self.skc.skTestConnection()
+        if (self.connected == 1):
+            wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+            self.mediaList = []
+            self.mediaDisplay.DeleteAllItems()
+            self.playIndex = 0;
+            self.mediaPlayer.Stop()
+            self.playReady = False
+            return
+        wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
+        self.skGetList(wx.Event)
 
     def skSetConnection(self, event):
         '''
@@ -426,13 +452,12 @@ class SKGUI(wx.Panel):
         dlg = NewConnection(parent=self)
         dlg.ShowModal()
         if dlg.resultip:
-            try:
-                ipaddress.ip_address(dlg.resultip)
-            except:
-                wx.MessageBox("Invalid IP", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
-                return
-            self.__host = dlg.resultip
-            self.__port = int(dlg.resultport)
+            if dlg.resultip != 'bad':
+                self.__host = dlg.resultip
+                self.__port = dlg.resultport
+            else:
+                wx.MessageBox("Invalid Settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+
         else:
             dlg.Destroy()
             return
@@ -442,8 +467,14 @@ class SKGUI(wx.Panel):
         self.connected = self.skc.skTestConnection()
         if (self.connected == 1):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+            self.mediaList = []
+            self.mediaDisplay.DeleteAllItems()
+            self.playIndex = 0;
+            self.mediaPlayer.Stop()
+            self.playReady = False
             return
         wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
+        self.skGetList(wx.Event)
 
     def skBatchDownload(self, event):
         batchFrame = SKBatchFrame(self.mediaManager)
@@ -477,11 +508,22 @@ class SKGUI(wx.Panel):
         check = self.skc.skBuildDir(self.__dirLocation)
         if (check == 2):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+            self.mediaList = []
+            self.mediaDisplay.DeleteAllItems()
+            self.playIndex = 0;
+            self.mediaPlayer.Stop()
+            self.playReady = False
             return
         if(check == 1):
             wx.MessageBox("Something wen't wrong with directory building", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+            self.mediaList = []
+            self.mediaDisplay.DeleteAllItems()
+            self.playIndex = 0;
+            self.mediaPlayer.Stop()
+            self.playReady = False
             return
-        self.onStop(wx.EVT_BUTTON)
+        if(self.isPlaying):
+            self.onStop(wx.EVT_BUTTON)
         self.playIndex = 0
         self.mediaList = []
         self.mediaDisplay.DeleteAllItems()
@@ -492,6 +534,7 @@ class SKGUI(wx.Panel):
             self.mediaDisplay.SetItemData(i, int(x.index))
             i += 1
         self.mediaManager.skdbUpdateDefault(self.mediaList)
+        self.playReady = True
 
     def skListOption(self, event):
         '''
@@ -518,6 +561,7 @@ class SKGUI(wx.Panel):
             i += 1
         self.playIndex = 0
         self.mediaDisplay.SetFocus()
+        self.playReady = True;
         event.Skip()
 
     def skSortList(self, event):
@@ -531,6 +575,8 @@ class SKGUI(wx.Panel):
         Method that shuffles currently selected list
         '''
         # ----------------------REPORT VERSION----------------------#
+        if(len(self.mediaList)<1):
+            return
         findDex = self.mediaList[self.playIndex]
         tempList = self.mediaManager.skShuffleList(self.mediaList, self.playIndex)
         self.mediaList = []
@@ -543,7 +589,6 @@ class SKGUI(wx.Panel):
             i += 1
         self.playIndex = 0
         self.mediaDisplay.SetFocus()
-
 
     def skGetFile(self, event):
         '''
@@ -581,7 +626,7 @@ class SKGUI(wx.Panel):
         if the user tries to load an unsupported file type
         """
         val = self.skc.skCheckFile(index)
-        print("val: " + str(val))
+        # print("val: " + str(val))
         if(val==1):
             wx.MessageBox("Unable to load %s: No file found" % self.mediaList[index].title, "ERROR",wx.ICON_EXCLAMATION | wx.OK)
             return
@@ -589,7 +634,7 @@ class SKGUI(wx.Panel):
             wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
             return
         request = self.uri + musicPath
-        print("Request: " + request)
+        # print("Request: " + request)
         if not self.mediaPlayer.Load(musicPath):
             wx.MessageBox("Unable to load %s: Unsupported format?" % musicPath,
                           "ERROR",
@@ -659,6 +704,12 @@ class SKGUI(wx.Panel):
         Needs to be rewritten so that it either plays or pauses
         """
         # Jamie: look into this for checking if playing
+        if not self.playReady:
+            wx.MessageBox("Please load a list into player",
+                          "ERROR",
+                          wx.ICON_ERROR | wx.OK)
+            return
+
         if self.isPlaying:
             self.onPause()
             self.playPauseBtn.SetToggle(False)
@@ -1031,13 +1082,13 @@ class SKListFrame(wx.Frame):
                         if(option == 'Albums'):
                             for x in libraryList:
                                 if (source == x.album):
-                                    print("album, {0}, {1}\n".format(source, x.album))
+                                    # print("album, {0}, {1}\n".format(source, x.album))
                                     results.append(x)
 
                         elif(option == 'Artists'):
                             for x in libraryList:
                                 if (source == x.artist):
-                                    print("artist, {0}, {1}\n".format(source, x.artist))
+                                    # print("artist, {0}, {1}\n".format(source, x.artist))
                                     results.append(x)
 
                         for x in results:
@@ -1055,6 +1106,7 @@ class SKListFrame(wx.Frame):
     #---------------------------------------------------------------------------
     # WHEN A SONG IS SELECTED AND THE ADD BUTTON IS PRESSED, THE SONG WILL BE
     # ADDED TO THE PLAYLIST IF IT IS NOT AN ACTUAL SONG, A MESSAGEBOX WILL SHOW
+
     def addItems(self, event):
         chosenIndex = self.sourceDisplay.GetSelection()
         if(chosenIndex != wx.NOT_FOUND):
@@ -1064,9 +1116,7 @@ class SKListFrame(wx.Frame):
             for x in self.skm.skdbGetList('defPlaylist'):
                 if (x.title == chosen):
                     inLibrary = True
-
             if (inLibrary):
-
                 toAdd = self.sourceDisplay.GetSelections()
                 skFToAdd = []
                 for x in toAdd:
@@ -1153,6 +1203,7 @@ class NewConnection(wx.Dialog):
 
     def OnQuit(self, event):
         self.resultip = None
+        self.resultport = None
         self.Destroy()
 
     def skSaveConn(self, event):
@@ -1161,30 +1212,45 @@ class NewConnection(wx.Dialog):
             try:
                 self.resultip = gethostbyname(gethostname())
             except Exception as e:
-                print(e)
+                # print(e)
+                self.resultip = 'bad'
+                self.resultport = None
                 pass
-        self.resultport = self.port.GetValue()
-        print(self.resultip)
-        print(self.resultport)
+        try:
+            self.resultport = int(self.port.GetValue())
+            if self.resultport > 65535 or self.resultport < 0:
+                self.resultip = 'bad'
+                self.resultport = None
+        except:
+            self.resultip = 'bad'
+            self.resultport = None
+
+        # print(self.resultip)
+        # print(self.resultport)
         self.Destroy()
 
 #####################################################################################
 
 class EditConnection(wx.Dialog):
-    def __init__(self, parent):
+    def __init__(self, parent, host, port, dir, custom, time):
         self.parent = parent
-        self.frame = wx.Dialog.__init__(self, parent, wx.ID_ANY, "Edit Connection Settings", size=(650, 300))
+        self.frame = wx.Dialog.__init__(self, parent, wx.ID_ANY, "Edit Connection Settings", size=(650, 325))
         self.panel = wx.Panel(self, wx.ID_ANY)
         self.iplabel = wx.StaticText(self.panel, label="IP Address", pos=(20, 20))
-        self.ip = wx.TextCtrl(self.panel, value="", pos=(150, 20), size=(400, -1))
+        self.ip = wx.TextCtrl(self.panel, value=host, pos=(150, 20), size=(400, -1))
         self.portlabel = wx.StaticText(self.panel, label="Port Number", pos=(20, 60))
-        self.port = wx.TextCtrl(self.panel, value="", pos=(150, 60), size=(400, -1))
+        self.port = wx.TextCtrl(self.panel, value=str(port), pos=(150, 60), size=(400, -1))
         self.serverLabel = wx.StaticText(self.panel, label="Server Directory", pos=(20, 100))
-        self.server = wx.TextCtrl(self.panel, value="", pos=(150, 100), size=(400, -1))
+        self.serverdir = wx.TextCtrl(self.panel, value=dir, pos=(150, 100), size=(400, -1))
         self.timeoutLabel = wx.StaticText(self.panel, label="Server Timeout", pos=(20, 140))
-        self.timeout = wx.TextCtrl(self.panel, value="", pos=(150, 140), size=(400, -1))
-        self.custServerLabel = wx.StaticText(self.panel, label="Running the server? y or n", pos=(20, 180))
-        self.custServer = wx.TextCtrl(self.panel, value="", pos=(150, 180), size=(400, -1))
+        self.timeout = wx.TextCtrl(self.panel, value=str(time), pos=(150, 140), size=(400, -1))
+        # self.custServerLabel = wx.StaticText(self.panel, label="Running the server? y or n", pos=(20, 180))
+        # self.custServer = wx.TextCtrl(self.panel, value="", pos=(150, 180), size=(400, -1))
+
+        labels = ['No', 'Yes']
+        self.custServerBox = wx.RadioBox(self.panel, label = 'Are you using the SounderKin Server?', pos = (150,180), choices = labels,
+         majorDimension = 1, style = wx.RA_SPECIFY_ROWS)
+        self.custServerBox.SetSelection(custom)
 
         self.saveButton = wx.Button(self.panel, label="OK", pos=(110, 240))
         self.closeButton = wx.Button(self.panel, label="Cancel", pos=(210, 240))
@@ -1197,26 +1263,51 @@ class EditConnection(wx.Dialog):
         self.resultip = None
         # self.frame.MakeModal(False)
         # self.Destroy()
-        self.EndModal(0)
+        self.Destroy()
 
     def skSaveConn(self, event):
-        '''No error checking?'''
-        if (self.ip.GetValue() != ""):
-            self.parent.__host = self.ip.GetValue()
+        '''No error checking? Port isn't converted?'''
+        '''Ip Check'''
+        self.resultip = self.ip.GetValue()
+        try:
+            if self.resultip == '127.0.0.1' or self.resultip == 'localhost':
+                self.resultip = gethostbyname(gethostname())
+            ipaddress.ip_address(self.resultip)
+        except:
+        #     Error with IP address show message
+            self.resultip = 'bad'
+            return
 
-        if (self.port.GetValue() != ""):
-            self.parent.__port = self.port.GetValue()
+        '''Port Check'''
+        try:
+            self.resultport = int(self.port.GetValue())
+            if self.resultport >65535 or self.resultport<0:
+                self.resultip = 'bad'
+                return
+        except:
+            self.resultip = 'bad'
+            return
 
-        if (self.custServer.GetValue() != ""):
-            self.parent.__customServer = self.custServer.GetValue()
+        '''Dirlocation Check'''
+        self.resultdir = self.serverdir.GetValue()
+        if(self.resultdir == ''):
+            self.resultip = 'bad'
+            return
 
-        if (self.server.GetValue() != ""):
-            self.parent.__dirLocation = self.server.GetValue()
+        '''timeout Check'''
+        try:
+            self.resulttime = float(self.timeout.GetValue())
+            if(self.resulttime<0.1):
+                self.resultip = 'bad'
+                return
+        except:
+            self.resultip = 'bad'
+            return
 
-        if (self.timeout.GetValue() != ""):
-            self.parent.__timeout = self.timeout.GetValue()
+        '''Custom Server Check'''
+        self.resultcustom = self.custServerBox.GetSelection()
+        self.Destroy()
 
-        self.EndModal(1)
 
 #####################################################################################
 class SKBatchFrame(wx.Dialog):
