@@ -1,6 +1,7 @@
 package com.sk.krolikj.skandroid;
 
 import android.content.Context;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -14,17 +15,20 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import java.io.IOException;
+
 public class PlayerFragment extends Fragment {
 
-    Button playButton;
-    SeekBar positionBar;
-    SeekBar volumeBar;
-    TextView timePassedLabel;
-    TextView timeLeftLabel;
-    TextView songName;
-    MediaPlayer mp;
+    private Button playButton;
+    private SeekBar positionBar;
+    private SeekBar volumeBar;
+    private TextView timePassedLabel;
+    private TextView timeLeftLabel;
+    private TextView songName;
+    private MediaPlayer mp;
     private SKFile skf;
-    int songLength;
+    private int songLength;
+    private ViewGroup cont;
     final static String ARG_POSITION = "position";
     int mCurrentPosition = -1;
     private static final String ARG_PARAM1 = "param1";
@@ -51,6 +55,7 @@ public class PlayerFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         if (getArguments() != null) {
             mParam1 = getArguments().getString(ARG_PARAM1);
             mParam2 = getArguments().getString(ARG_PARAM2);
@@ -63,6 +68,9 @@ public class PlayerFragment extends Fragment {
         if (savedInstanceState != null) {
             mCurrentPosition = savedInstanceState.getInt(ARG_POSITION);
         }
+//        if (container != null) {
+//            container.removeAllViews();
+//        }
 
         View rootView = inflater.inflate(R.layout.fragment_player, container, false);
 
@@ -71,16 +79,27 @@ public class PlayerFragment extends Fragment {
         timeLeftLabel = rootView.findViewById(R.id.timeLeftLabel);
         songName = rootView.findViewById(R.id.songName);
         MainActivity main = (MainActivity)getActivity();
-        skf = main.getSongData();
-        songName.setText(skf.getSongTitle());
+        //if(main.getSongSet()) {
+            skf = main.getSongData();
+            songName.setText(skf.getSongTitle());
+            try {
 
-        //mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
-        mp = MediaPlayer.create(getActivity().getBaseContext(), Uri.fromFile(main.getSong()));
-        System.out.println(main.getSong());
-        mp.setLooping(true);
-        mp.seekTo(0);
-        mp.setVolume(0.5f, 0.5f);
-        songLength = mp.getDuration();
+                //mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
+                //mp = MediaPlayer.create(getActivity().getBaseContext(), Uri.fromFile(main.getSong()));
+                mp = new MediaPlayer();
+                mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                System.out.println(main.getSong());
+                //mp.seekTo(0);
+                mp.setVolume(0.5f, 0.5f);
+                mp.setDataSource(main.getSongURL());
+                mp.prepare();
+                mp.start();
+                playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
+                //songLength = mp.getDuration();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        //}
 
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override

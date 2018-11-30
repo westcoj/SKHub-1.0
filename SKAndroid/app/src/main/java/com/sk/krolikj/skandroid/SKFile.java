@@ -7,9 +7,10 @@ public class SKFile {
     private String songTitle;
     private String songArtist;
     private String songAlbum;
+    private float songTime;
     private String cachePath;
 
-    public SKFile(String path, int index, String title, String artist, String album){
+    public SKFile(String path, int index, String title, String artist, String album, float time){
         filePath = path;
         if(title != null)
             songTitle = title;
@@ -24,6 +25,11 @@ public class SKFile {
         else
             songAlbum = "";
         songIndex = index;
+        songTime = time;
+    }
+
+    public float getSongTime(){
+        return songTime;
     }
 
     public String getFilePath(){

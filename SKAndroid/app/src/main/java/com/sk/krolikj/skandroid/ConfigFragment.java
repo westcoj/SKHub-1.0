@@ -1,20 +1,13 @@
 package com.sk.krolikj.skandroid;
 
 import android.content.Context;
-import android.content.Intent;
-import android.media.Image;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.design.widget.BottomNavigationView;
 import android.support.design.widget.TextInputLayout;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -25,7 +18,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
@@ -35,10 +27,7 @@ public class ConfigFragment extends Fragment {
 
     private int portNum;
     private String ip;
-    private Socket sock;
     private URL url;
-    private DataInputStream dIS;
-    private DataOutputStream dOS;
     private Boolean connectSuccess = false;
     private TextInputLayout ipInput;
     private TextInputLayout portInput;
@@ -77,37 +66,32 @@ public class ConfigFragment extends Fragment {
     }
 
     private int skOpen() {
-//        System.setProperty("http.keepAlive", "false");
-//        try {
-//            //url = new URL("http://" + ip + ":" + portNum + "/");
-//            url = new URL("http://127.0.0.1:8080/index.mp3");
-//            System.out.println("URL: " + url.toString());
-//            HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-//            conn.setRequestMethod("GET");
-//            conn.setConnectTimeout(5000);
-//            conn.setReadTimeout(5000);
-//            System.out.println(conn.getResponseCode());
-//            //conn.connect();
-//            //conn.disconnect();
-//            return 0;
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return 1;
-//        }
-        try{
-            sock = new Socket(ip, portNum);
-            dIS = new DataInputStream(sock.getInputStream());
-            dOS = new DataOutputStream(sock.getOutputStream());
-            Log.d("OPEN", "Connection Established");
+        try {
+            MainActivity main = (MainActivity)getActivity();
+            url = new URL("http://" + ip + ":" + portNum + "/hello");
+            System.out.println("URL: " + url.toString());
+            HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            System.out.println(conn.getResponseCode());
+            url = new URL("http://" + ip + ":" + portNum);
+            main.setURL(url);
             return 0;
-        }catch(IOException e){
-            Log.e("!OPEN", e.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
             return 1;
         }
-    }
-
-    private void skClose() throws IOException {
-        sock.close();
+//        try{
+//            sock = new Socket(ip, portNum);
+//            dIS = new DataInputStream(sock.getInputStream());
+//            dOS = new DataOutputStream(sock.getOutputStream());
+//            Log.d("OPEN", "Connection Established");
+//            return 0;
+//        }catch(IOException e){
+//            Log.e("!OPEN", e.toString());
+//            return 1;
+//        }
     }
 
     @Override
@@ -118,6 +102,9 @@ public class ConfigFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
+//        if (container != null) {
+//            container.removeAllViews();
+//        }
         final View rootView = inflater.inflate(R.layout.fragment_config, container, false);
 
         MainActivity main = (MainActivity)getActivity();
@@ -169,30 +156,15 @@ public class ConfigFragment extends Fragment {
         protected Void doInBackground(Void... params) {
             System.out.println(ip + "/" + portNum);
             skSetIpHost(ip, portNum);
-//            try {
-//                String urlName = "http://" + ip + ":" + portNum;//+ "\\C:\\Users\\sd56f\\Documents\\CIS457\\CurrentProject\\directory.txt";
-//                HttpURLConnection con =
-//                        (HttpURLConnection) new URL(urlName).openConnection();
-//                con.setRequestMethod("HEAD");
-//                System.out.println(con.getResponseCode() == HttpURLConnection.HTTP_OK);
-//            }catch(IOException e){
-//                e.printStackTrace();
-//            }
+
             if (skOpen() == 0) {
                 connectSuccess = true;
-//                try {
-//                    skClose();
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
                 System.out.println("Connection Successful");
-                return null;
             } else {
                 connectSuccess = false;
                 System.out.println("Connection Failed");
-
-                return null;
             }
+            return null;
         }
     }
 

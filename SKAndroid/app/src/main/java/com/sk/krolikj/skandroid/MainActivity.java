@@ -2,65 +2,38 @@ package com.sk.krolikj.skandroid;
 
 
 import android.content.Context;
-import android.content.Intent;
-import android.media.MediaPlayer;
-import android.media.session.MediaController;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
-import android.view.Menu;
+import android.util.SparseArray;
 import android.view.MenuItem;
-import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 
-import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.Socket;
+import java.lang.ref.WeakReference;
 import java.net.URL;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.LinkOption;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private URL theUrl;
+    private String songURL;
     private String theHostName;
     private String thePortNum;
     private SKFile songPlaying;
     private File song;
     private TextView mTextMessage;
-    private int portNum;
     private String dirPath;
-    private String hostName;
-    private boolean sockStatus;
-    private Socket sock;
-    private DataInputStream dIS;
-    private DataOutputStream dOS;
-    private String[] directory;
     private ArrayList <SKFile> skFile;
     private ArrayList <SKFile> lib;
-    private MediaPlayer mp;
-    private MediaController mc;
-    private File cacheDir;
-    private File ouputFile;
     private Context appContext;
     private ArrayList<SKFile> cache;
     private final static int CACHEMAX = 5;
@@ -68,28 +41,8 @@ public class MainActivity extends AppCompatActivity {
     private HomeFragment homeFragment;
     private PlayerFragment playerFragment;
     private ConfigFragment configFragment;
+    private boolean songSet;
 
-
-
-//    public MainActivity(String path, int port, String ip){
-//        dirPath = path;
-//        portNum = port;
-//        hostName = ip;
-//        sockStatus = false;
-//        directory = new ArrayList<String>();
-//        skFile = new ArrayList<String>();
-//        mp = new MediaPlayer();
-//        mc = new MediaController();
-//    }
-
-//    public int skSetup(MainActivity act){
-//        /*Old method might not need*/
-//        return 0;
-//    }
-//
-//    public void skWriteSKC(){
-//        /*Old method might not need*/
-//    }
 
     public void setDirectoryPath(String path){
         dirPath = path;
@@ -126,6 +79,14 @@ public class MainActivity extends AppCompatActivity {
         return song;
     }
 
+    public String getSongURL(){
+        return songURL;
+    }
+
+    public void setSongURL(String url) {
+        songURL = url;
+    }
+
     public void skSetIpHost(String host, int port){
         theHostName = host;
         thePortNum = Integer.toString(port);
@@ -140,20 +101,6 @@ public class MainActivity extends AppCompatActivity {
         songPlaying = sk;
     }
 
-//
-//    private int skOpen(){
-////        try{
-////            sock = new Socket(hostName, portNum);
-////            dIS = new DataInputStream(sock.getInputStream());
-////            dOS = new DataOutputStream(sock.getOutputStream());
-////            sockStatus = true;
-////            Log.d("OPEN", "Connection Established");
-////            return 0;
-////        }catch(IOException e){
-////            Log.e("!OPEN", e.toString());
-////            return 1;
-////        }
-////    }
     public String getHostPort(){
         return theHostName + "/" + thePortNum;
     }
@@ -164,6 +111,14 @@ public class MainActivity extends AppCompatActivity {
 
     public URL getURL(){
         return theUrl;
+    }
+
+    public boolean getSongSet(){
+        return songSet;
+    }
+
+    public void setSongSet(boolean status){
+        songSet = status;
     }
 
 //    private void skClose() throws IOException {
@@ -337,17 +292,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-//    public void audioPlayer(String path, String fileName){
-//        try {
-//            mp = new MediaPlayer();
-//            mp.setDataSource(path + "/" + fileName);
-//            mp.prepare();
-//            mp.start();
-//        }catch(Exception e){
-//            e.printStackTrace();
-//        }
-//    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -355,6 +299,13 @@ public class MainActivity extends AppCompatActivity {
 
 
         navigation = findViewById(R.id.navigation);
+//        songSet = false;
+//        final CustomViewPager viewPager = findViewById(R.id.viewpager1);
+//        ViewPagerAdapter adapter = new ViewPagerAdapter (MainActivity.this.getSupportFragmentManager());
+//        adapter.addFragment(new HomeFragment(), "title");
+//        adapter.addFragment(new PlayerFragment(), "title");
+//        adapter.addFragment(new ConfigFragment(), "title");
+//        viewPager.setAdapter(adapter);
         homeFragment = new HomeFragment();
         playerFragment = new PlayerFragment();
         configFragment = new ConfigFragment();
@@ -367,12 +318,15 @@ public class MainActivity extends AppCompatActivity {
                 switch (item.getItemId()) {
                     case R.id.navigation_library:
                         setFragment(homeFragment);
+                        //viewPager.setCurrentItem(0);
                         return true;
                     case R.id.navigation_player:
                         setFragment(playerFragment);
+                        //viewPager.setCurrentItem(1);
                         return true;
                     case R.id.navigation_config:
                         setFragment(configFragment);
+                        //viewPager.setCurrentItem(2);
                         return true;
                 }
 
@@ -380,61 +334,71 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-    //    };
-
         appContext = getApplication();
-        //cacheDir = getCacheDir();
-        //dirPath = cacheDir.toString();
         skFile = new ArrayList<SKFile>();
         cache = new ArrayList<SKFile>();
-
-//        mp = MediaPlayer.create(this, R.raw.music);
-//        mp.setLooping(true);
-//        mp.seekTo(0);
-//        mp.setVolume(0.5f, 0.5f);
 
         mTextMessage = (TextView) findViewById(R.id.message);
         //navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
     }
 
-//    private class ConnectTask extends AsyncTask<Void, Void, Void>{
-//
-//        @Override
-//        protected Void doInBackground(Void... params){
-//            byte[] fileData;
-//            skSetIpHost("192.168.1.78", 9222);
-//            //skOpen();
-//            System.out.println(dirPath);
-//            try {
-//                userComm("update");
-//                skUIFile(0);
-//            } catch (IOException e) {
-//                Log.e("UIFILE", e.toString());
-//            }
-//            return null;
-//        }
-//    }
+    private class ViewPagerAdapter extends FragmentPagerAdapter {
+        private final SparseArray<WeakReference<Fragment>> instantiatedFragments = new SparseArray<>();
+        private final List<Fragment> mFragmentList = new ArrayList<>();
+        private final List<String> mFragmentTitleList = new ArrayList<>();
+
+        ViewPagerAdapter(FragmentManager manager) {
+            super(manager);
+        }
+
+        @Override
+        public Fragment getItem(int position) {
+            return mFragmentList.get(position);
+        }
+
+        @Override
+        public int getCount() {
+            return mFragmentList.size();
+        }
+
+        void addFragment(Fragment fragment, String title) {
+            mFragmentList.add(fragment);
+            mFragmentTitleList.add(title);
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            final Fragment fragment = (Fragment) super.instantiateItem(container, position);
+            instantiatedFragments.put(position, new WeakReference<>(fragment));
+            return fragment;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            instantiatedFragments.remove(position);
+            super.destroyItem(container, position, object);
+        }
+
+        @Nullable
+        Fragment getFragment(final int position) {
+            final WeakReference<Fragment> wr = instantiatedFragments.get(position);
+            if (wr != null) {
+                return wr.get();
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        public CharSequence getPageTitle(int position) {
+            return mFragmentTitleList.get(position);
+        }
+    }
 
     public void setFragment(Fragment frag){
         FragmentTransaction fragTrans = getSupportFragmentManager().beginTransaction();
         fragTrans.replace(R.id.mainFrame, frag);
         fragTrans.commit();
     }
-
-//    public void connect(View view){
-//        new ConnectTask().execute();
-//    }
-
-//    public void playPause(View view){
-//        if(mp.isPlaying()) {
-//            mp.pause();
-//        } else {
-//            mp.start();
-//        }
-//    }
-//
-//    public void skipSong(View view){
-//
-//    }
 }
 
