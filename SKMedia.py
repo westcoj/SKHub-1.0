@@ -292,6 +292,8 @@ class SKMedia(object):
         return 1
 
     def skdbSearchList(self, option, value, list):
+        print(list)
+        print(value)
         if (option == 1):
             option = 'title'
         if (option == 2):
@@ -301,12 +303,13 @@ class SKMedia(object):
         try:
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()
-        except:
+        except Exceptio as e:
+            print(e)
             return 1  # DB CONNECTION ERROR
         try:
             retList = []
-            getCom = "SELECT * FROM [%s] WHERE [%s]=?;" % (self.skScrubName(list),option)
-            cur.execute(getCom, value)
+            getCom = "SELECT * FROM %s WHERE %s=?;" % (self.skScrubName(list),option)
+            cur.execute(getCom, (value,))
             newList = cur.fetchall()
             for x in newList:
                 skF = SKFile(x[0], x[1], x[2], x[3], x[4], x[5])
@@ -336,6 +339,5 @@ class SKMedia(object):
             return 1
 
 if __name__ == "__main__":
-    s = 'HELLO W@RLD 19 !!))' 
-    s = re.sub('[^0-9a-zA-Z ]+','',s)
-    print(s)
+    s = SKMedia()
+    s.skdbSearchList(2, 'Sebastion Freij', 'defPlaylist')

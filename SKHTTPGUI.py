@@ -187,12 +187,6 @@ class SKGUI(wx.Panel):
     def createLayout(self):
         '''
         Create layout of GUI
-
-        The slider of the GUI needs an update as clicking on the bar doesn't move the slider to the
-        correct position. This can cause weird stuff when you click multiple times. This isn't a simple fix,
-        so I'd suggest starting here. This will be further complicated once we switch to streaming.
-
-        https://stackoverflow.com/questions/9961456/get-wxpython-sliders-value-under-mouse-click
         '''
         try:
             self.mediaPlayer = wx.media.MediaCtrl(self, style=wx.SIMPLE_BORDER, szBackend=wx.media.MEDIABACKEND_WMP10)
@@ -204,9 +198,9 @@ class SKGUI(wx.Panel):
             self.Destroy()
             self.skExitApp()
             return 1
-
-        self.playSlider = wx.Slider(self, size=wx.DefaultSize, style=wx.SL_HORIZONTAL)
+        self.playSlider = skTestSlider(parent=self, media=self.mediaPlayer, size=wx.DefaultSize, style=wx.SL_HORIZONTAL, gap=12)
         self.playSlider.SetMinSize((200,20))
+        self.playGap = 12
         self.Bind(wx.EVT_SLIDER, self.onSeek, self.playSlider)
         self.currentTimeLabel = wx.StaticText(self, 1, style=wx.ALIGN_LEFT, size=wx.DefaultSize)
         # self.currentTimeLabel.SetSize((5,5))
@@ -242,7 +236,7 @@ class SKGUI(wx.Panel):
 
         self.hideButton = wx.Button(self, id=wx.ID_ANY, label='Hide List')
         self.hideButton.Bind(wx.EVT_BUTTON, self.onButton)
-        self.hideButton.Bind(wx.EVT_SET_FOCUS, (lambda: 'ignore focus'))
+        self.hideButton.Bind(wx.EVT_SET_FOCUS, (lambda x: 'ignore focus'))
 
 
         mainSizer = wx.BoxSizer(wx.VERTICAL)
@@ -674,7 +668,6 @@ class SKGUI(wx.Panel):
             self.playPauseBtn.Enable(True)
             self.maxTimeLabel.SetLabel(self.skGetTime(time))
 
-
     def skNext(self, event):
         """
         Method that selects next song from list, or stops if end of list is reached.
@@ -784,7 +777,7 @@ class SKGUI(wx.Panel):
     def onSeek(self, event):
         """
         Seeks the media file according to the amount the slider has
-        been adjusted. (Fix the weird lag on click, might be fixed with mPlayer)
+        been adjusted.
         """
         offset = self.playSlider.GetValue()
         self.mediaPlayer.Seek(offset)
@@ -818,8 +811,8 @@ class SKGUI(wx.Panel):
         except RuntimeError:
             pass #Closed app while trying to get time for slider, unimportant
 
-
 ########################################################################
+
 class MediaFrame(wx.Frame):
     def __init__(self):
         setSize = (800, 300)
@@ -847,6 +840,7 @@ class MediaFrame(wx.Frame):
             # event.Skip()
 
 ########################################################################
+
 class SKListFrame(wx.Frame):
     '''
     Class for secondary GUI that manages playlist loading and creation
@@ -1217,8 +1211,8 @@ class SKListFrame(wx.Frame):
         '''Method runs when user hits close'''
         self.Destroy()
 
-
 #####################################################################################
+
 class NewConnection(wx.Dialog):
     def __init__(self, parent):
         wx.Dialog.__init__(self, parent, wx.ID_ANY, "Name Input", size=(650, 220))
@@ -1341,8 +1335,8 @@ class EditConnection(wx.Dialog):
         self.resultcustom = self.custServerBox.GetSelection()
         self.Destroy()
 
-
 #####################################################################################
+
 class SKBatchFrame(wx.Dialog):
     '''
     Method that handles editing batch download frame
@@ -1404,6 +1398,42 @@ class SKBatchFrame(wx.Dialog):
         except:
             pass
 
+#####################################################################################
+
+class skTestSlider(wx.Slider):
+    '''
+    Made using instructions from:
+        https://stackoverflow.com/questions/9961456/get-wxpython-sliders-value-under-mouse-click
+
+
+
+    '''
+    def __init__(self, gap, media, *args, **kwargs):
+        wx.Slider.__init__(self, *args, **kwargs)
+        self.gap = gap
+        self.Bind(wx.EVT_LEFT_DOWN, self.OnClick)
+        self.media=media
+
+    def linapp(self, x1, x2, y1, y2, x):
+        return (float(x - x1) / (x2 - x1)) * (y2 - y1) + y1
+
+    def OnClick(self, e):
+        click_min = self.gap
+        click_max = self.GetSize()[0] - self.gap
+        click_position = e.GetX()
+        result_min = self.GetMin()
+        result_max = self.GetMax()
+        if click_position > click_min and click_position < click_max:
+            result = self.linapp(click_min, click_max,
+                                 result_min, result_max,
+                                 click_position)
+        elif click_position <= click_min:
+            result = result_min
+        else:
+            result = result_max
+        self.SetValue(result)
+        self.media.Seek(result)
+        e.Skip()
 
 
 # ----------------------------------------------------------------------

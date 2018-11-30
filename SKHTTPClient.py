@@ -128,52 +128,46 @@ class SKHTTPClient(object):
         except IndexError:
             return 3
 
-    def skBatchFiles(self, list, folder):
-        '''
-        Method should download a list of files for later playback.
-        Takes in a list of indexes and folder to download to,
-        return a list of files that couldn't be downloaded
-
-        NOT IMPLEMENTED IN GUI
-        '''
-        errList = []
-        for x in list:
-            file = self.__skFiles[x]
-            val = self.skCheckFile(x)
-            if(val==0):
-                try:
-                    r = requests.get(self.__url + file.path, timeout=self.__timeout)
-                    if(file.title.endswith('.mp3')):
-                        with open(folder + file.title, "wb") as musicFile:
-                            musicFile.write(r.content)
-                    else:
-                        with open(folder + file.title + '.mp3', "wb") as musicFile:
-                            musicFile.write(r.content)
-                except Exception:
-                    errList.append(x)
-                    pass
-            else:
-                errList.append(x)
-        return errList
 
     def skBatchFile(self, index, folder):
-        if(not os.path.isdir('/batches/' + folder)):
-            os.makedirs('/batches/' + folder)
+        '''
+        Windows doesn't like : in titles, great. Maybe just disable batch files altogether?
+        :param index:
+        :param folder:
+        :return:
+        '''
+        folder = ''.join(e for e in folder if e.isalnum())
+        path = os.path.join('batches',folder.strip())
+        path2=os.path.join(os.getcwd(),path)
+        print(path2)
+        if(not os.path.isdir(path2)):
+            os.makedirs(path2)
         file = self.__skFiles[index]
+        fPath = file.path.rsplit('/',1)
         val = self.skCheckFile(index)
         if (val == 0):
             try:
                 r = requests.get(self.__url + file.path, timeout=self.__timeout)
-                if (file.title.endswith('.mp3')):
-                    with open('/batches/' + folder + '/' + file.title, "wb") as musicFile:
-                        musicFile.write(r.content)
-                        musicFile.flush()
-                else:
-                    with open('/batches/' + folder + '/' + file.title + '.mp3', "wb") as musicFile:
-                        musicFile.write(r.content)
-                        musicFile.flush()
+                with open((os.path.join(path2, fPath[1])), "wb") as musicFile:
+                    musicFile.write(r.content)
+                    musicFile.flush()
                 return 0
-            except Exception:
+                # if (file.title.endswith('.mp3')):
+                #     with open((os.path.join(path2, file.title)), "wb") as musicFile:
+                #         musicFile.write(r.content)
+                #         musicFile.flush()
+                #         musicFile.close()
+                # else:
+                #     filetitle2 = file.title + '.mp3'
+                #     print(filetitle2)
+                #     print(os.path.join(path2, filetitle2))
+                #     data = r.content
+                #     with open((os.path.join(path2, filetitle2)), "wb") as musicFile:
+                #         musicFile.write(data)
+                #         musicFile.flush()
+                # return 0
+            except Exception as e:
+                print(e)
                 return 1
 
 
@@ -197,10 +191,13 @@ class SKHTTPClient(object):
             sys.exit()  # REMOVE LATER
 
 if __name__ == "__main__":
-    ClientK = SKHTTPClient(65535, '184.75.148.148')
+    ClientK = SKHTTPClient(65535, '184.75.148.148', 1, 0.5)
     val = ClientK.skTestConnection()
     # print(val)
-    ClientK.skTestSend()
+    ClientK.skBuildDir('E:\Code2\PyCharm\Projects\SK1.3\\venv\directory.txt')
+    val = ClientK.skBatchFile(1,' folder: ')
+    val = ClientK.skBatchFile(2,'folder')
+    print(val)
     # ClientK.skBuildDir("E:/Code2/PyCharm/Projects/SK1.2/venv/directory.txt")
     # ClientK.skCheckFile(10)
         # command = raw_input("Enter Command")

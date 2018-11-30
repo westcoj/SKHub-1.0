@@ -56,5 +56,5 @@ class SKFile(object):
                 'title: ' + self.title + "\n" +
                 'artist: ' + self.artist + "\n" +
                 'album: ' + self.album + '\n' +
-                'time: ' + self.time)
+                'time: ' + str(self.time))
 
