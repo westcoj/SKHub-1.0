@@ -8,10 +8,12 @@ import wx.lib.buttons as buttons
 from SKHTTPClient import SKHTTPClient
 from SKMedia import SKMedia
 from SKFile import SKFile
+from datetime import datetime, timedelta
 import configparser
 import http.client
 import ipaddress
 import time
+from math import ceil, floor
 
 # for future use
 # import wx.lib.agw.aquabutton as AB
@@ -50,11 +52,20 @@ class SKGUI(wx.Panel):
         self.Bind(wx.EVT_TIMER, self.onTimer)
         self.frame.Bind(wx.EVT_CLOSE, self.skExitApp)
         self.timer.Start(100)
+        self.maxTime = 0.00
         self.mediaList = []
         self.playIndex = 0
         self.isPlaying = False
         self.uri = 'http://' + self.__host + ':' + str(self.__port) + '/'
         self.playReady = False;
+        print(self.skGetTime(123.58879818594104))
+
+    def skGetTime(self, time):
+        m = floor(time/60)
+        s = ceil(time%60)
+        if(s<10):
+            return (str(m) + ":0" + str(s))
+        return (str(m) + ":" + str(s))
 
     def skStartup(self):
         '''
@@ -195,7 +206,13 @@ class SKGUI(wx.Panel):
             return 1
 
         self.playSlider = wx.Slider(self, size=wx.DefaultSize, style=wx.SL_HORIZONTAL)
+        self.playSlider.SetMinSize((200,20))
         self.Bind(wx.EVT_SLIDER, self.onSeek, self.playSlider)
+        self.currentTimeLabel = wx.StaticText(self, 1, style=wx.ALIGN_LEFT, size=wx.DefaultSize)
+        # self.currentTimeLabel.SetSize((5,5))
+        self.currentTimeLabel.SetLabel('0:00')
+        self.maxTimeLabel = wx.StaticText(self, 1, style=wx.ALIGN_RIGHT)
+        self.maxTimeLabel.SetLabel('0:00')
 
         self.volumeCOP = wx.Slider(self, style=wx.SL_VERTICAL | wx.SL_INVERSE)
         self.volumeCOP.SetRange(0, 100)
@@ -229,6 +246,7 @@ class SKGUI(wx.Panel):
 
 
         mainSizer = wx.BoxSizer(wx.VERTICAL)
+        timeSlideSizer = wx.BoxSizer(wx.HORIZONTAL)
         hSizer = wx.BoxSizer(wx.HORIZONTAL)
         audioSizer = self.buildAudioBar()
         topSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -236,7 +254,15 @@ class SKGUI(wx.Panel):
         bottomSizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # layout widgets
-        mainSizer.Add(self.playSlider, 1, wx.ALL | wx.EXPAND, 5)
+        # mainSizer.Add(self.currentTimeLabel, 1, wx.ALL, 5)
+        # mainSizer.Add(self.playSlider, 1, wx.ALL | wx.EXPAND, 5)
+        # mainSizer.Add(self.maxTimeLabel, 1, wx.ALL, 5)
+        timeSlideSizer.AddSpacer(15)
+        timeSlideSizer.Add(self.currentTimeLabel, 0, wx.ALL, 0)
+        timeSlideSizer.Add(self.playSlider, 1,wx.ALL | wx.EXPAND, 1)
+        timeSlideSizer.Add(self.maxTimeLabel, 0, wx.ALL, 0)
+        mainSizer.AddSpacer(15)
+        mainSizer.Add(timeSlideSizer)
         hSizer.Add(audioSizer, 0, wx.ALL | wx.CENTER, 5)
         hSizer.Add(self.volumeCOP, 0, wx.ALL, 5)
         bottomSizer.Add(self.logo, 0, wx.RIGHT, border=65)
@@ -375,13 +401,13 @@ class SKGUI(wx.Panel):
         menubar = wx.MenuBar()
 
         fileMenu = wx.Menu()
-        conn_item = fileMenu.Append(wx.Window.NewControlId(), "&New Connection", "Connect to Server")
+        # conn_item = fileMenu.Append(wx.Window.NewControlId(), "&New Connection", "Connect to Server")
         settingsItem = fileMenu.Append(wx.Window.NewControlId(), "&Settings","Change Settings")
         exitItem = fileMenu.Append(wx.Window.NewControlId(), "&Quit\tCTRL+q", "Quit")
         menubar.Append(fileMenu, '&File')
 
         mediaMenu = wx.Menu()
-        updateListItem = mediaMenu.Append(wx.Window.NewControlId(), "&Update Library\tCtrl+u", "Update Media Directory")
+        updateListItem = mediaMenu.Append(wx.Window.NewControlId(), "&Update Library\tCTRL+u", "Update Media Directory")
         listItem = mediaMenu.Append(wx.Window.NewControlId(), "&Playlists\tCTRL+p", "Create Playlist")
         shuffleItem = mediaMenu.Append(wx.Window.NewControlId(), '&Shuffle\tCTRL+s', 'Shuffle Current List')
         batchItem = mediaMenu.Append(wx.Window.NewControlId(), '&Batch Download\tCTRL+b', 'Batch Download')
@@ -394,7 +420,7 @@ class SKGUI(wx.Panel):
         menubar.Append(controlMenu, '&Controls')
 
         self.frame.SetMenuBar(menubar)
-        self.frame.Bind(wx.EVT_MENU, self.skSetConnection, conn_item)
+        # self.frame.Bind(wx.EVT_MENU, self.skSetConnection, conn_item)
         self.frame.Bind(wx.EVT_MENU, self.skEditSettings, settingsItem)
         self.frame.Bind(wx.EVT_MENU, self.skExitApp, exitItem)
         self.frame.Bind(wx.EVT_MENU, self.skGetList, updateListItem)
@@ -642,9 +668,12 @@ class SKGUI(wx.Panel):
         else:
             self.mediaPlayer.SetInitialSize()
             self.GetSizer().Layout()
-            self.playSlider.SetRange(0, self.mediaList[self.playIndex].time * 1000)
+            time = self.skc.skGetFileDir()[index].time
+            self.playSlider.SetRange(0, time * 1000)
             # self.playSlider.SetRange(0, self.mediaPlayer.Length())
             self.playPauseBtn.Enable(True)
+            self.maxTimeLabel.SetLabel(self.skGetTime(time))
+
 
     def skNext(self, event):
         """
@@ -774,6 +803,7 @@ class SKGUI(wx.Panel):
         self.mediaPlayer.Stop()
         self.isPlaying = False
         self.playPauseBtn.SetToggle(False)
+        self.currentTimeLabel.SetLabel("0:00")
 
     def onTimer(self, event):
         """
@@ -782,6 +812,9 @@ class SKGUI(wx.Panel):
         try:
             offset = self.mediaPlayer.Tell()
             self.playSlider.SetValue(offset)
+            if self.isPlaying:
+                self.currentTimeLabel.SetLabel(self.skGetTime(floor(offset/1000)))
+
         except RuntimeError:
             pass #Closed app while trying to get time for slider, unimportant
 
