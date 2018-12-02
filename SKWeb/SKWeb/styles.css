@@ -1,0 +1,259 @@
+body{
+    background-size: cover;
+
+}
+
+.FullContainer {
+    /*align-self: center;*/
+    /*align-items: center;*/
+    /*justify-content: center;*/
+    text-align: center;
+    height: 800px;
+    width: 700px;
+    margin: auto;
+    /*position: relative;*/
+
+    /*background-image: url('../back.png');*/
+}
+
+
+.TopBlock{
+    height: 50px;
+    width: 700px;
+    position: relative;
+    /*display: inline-block;*/
+}
+
+.HeaderBlock{
+    /*width: 450px;*/
+    width: 64%;
+    height: 50px;
+    text-align: center;
+    border-style: solid;
+    border-color: #121212;
+    background-color: white;
+    position: relative;
+
+    float:left;
+}
+
+#welcome{
+    display: inline;
+}
+
+
+.PlaylistHeaderBlock{
+    width: 27%;
+    height: 100%;
+    text-align: center;
+    border-style: solid;
+    border-color: #121212;
+    background-color: white;
+    float:left;  /*float:right;*/
+    position: relative;
+
+}
+
+#playlistHeader{
+    display:inline;
+    /*position: absolute;*/
+}
+
+
+#clear{
+    clear: both;
+}
+
+.MiddleBlock{
+    height: 550px;
+    width: 700px;
+    position: relative;
+
+}
+
+.ArtFuncBlock{
+    width: 64%;
+    height: 550px;
+    text-align: center;
+    border-style: solid;
+    border-color: #121212;
+    float:left;
+    position: relative;
+
+    /*display: inline-block;*/
+}
+
+.PlaylistBlock{
+    /*display: inline-block;*/
+    width: 27%;
+    height: 550px;
+    border-style: solid;
+    border-color: #121212;
+    float:left;
+    position: relative;
+
+}
+
+.ArtBlock{
+    height: 450px;
+    /*width: 448px;*/
+    border-bottom-style: solid;
+    position: relative;
+    background-image: url('images/cover.png');
+}
+
+.bottom-container{
+    height: 96px;
+    width: 448px;
+    position: relative;
+    border-bottom-style: solid;
+    background-color: #6B97FF;
+    /*border-style: solid;*/
+}
+
+div.control-container{
+    width:450px;
+    height:74px;
+    display:inline;
+    position: relative;
+
+
+}
+
+div.meta-container{
+    width: 350px;
+    height: 74px;
+    position: relative;
+
+    /*display: inline-block;*/
+
+}
+
+#fileTitle{
+    white-space:nowrap;
+    overflow:hidden;
+}
+
+#fileArtist{
+    white-space:nowrap;
+    overflow:hidden;
+}
+
+div.song{
+    border-bottom-style: solid;
+    /*border-top-style: solid;*/
+    height: 107.5px;
+    position: relative;
+    background: url("images/cardback.png");
+    background-size: cover;
+    overflow: hidden;
+}
+
+#fileInfoBlock{
+    border-style: solid;
+    position: relative;
+    width: 350px;
+    height: 100px;
+    margin: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.skbutton{
+    width: 75px;
+    height: 75px;
+    display: inline-block;
+    margin-top: 10px;
+}
+
+#prev{
+    background: url("images/prev.png");
+    background-size: cover;
+}
+
+#next{
+    background: url("images/next.png");
+    background-size: cover;
+}
+
+#shuffle{
+    background: url("images/shuffle.png");
+    background-size: cover;
+}
+
+#play-pause{
+    background: url("images/play.png");
+    background-size: cover;
+}
+
+.SpanBlock{
+    width:500px;
+}
+
+
+.ProgressBlock{
+    height: 8px;
+    width: 300px;
+    margin: auto;
+    display: inline-block;
+
+
+}
+#ProgressBack{
+    height: 75%;
+    width: 100%;
+    background-color: darkgrey;
+    margin: auto;
+    display:inline-block;
+}
+
+#ProgressMarker{
+    height: 300%;
+    width: 1%;
+    position:relative;
+    top: -15px;
+    background-color: red;
+}
+
+.amplitude-current-minutes{
+    display:inline-block;
+}
+
+.amplitude-duration-minutes{
+    display:inline-block;
+
+}
+
+.BottomBlock{
+    height: 96px;
+    width: 643px;
+    position: relative;
+    top: 12px;
+    border-bottom-style: solid;
+    border-right-style: solid;
+    border-left-style: solid;
+    background: url("images/cardback.png");
+    background-size: cover;
+}
+
+#ListSelection{
+    position: relative;
+    display: inline-block;
+    right:100px;
+    /*top:-20px;*/
+}
+
+.RadioChoices{
+    display: inline-block;
+    position: relative;
+    right:70px;
+}
+
+#ListValues{
+    position: relative;
+    display: inline-block;
+    width: 80px;
+    overflow: hidden;
+    right: 50px;
+}
