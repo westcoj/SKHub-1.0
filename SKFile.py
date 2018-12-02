@@ -43,7 +43,7 @@ class SKFile(object):
         This method prints the file information in one string.
         '''
 
-        return self.path + " &%& " + str(self.index) + ' &%& ' + self.title + " &%& " + self.artist + " &%& " + self.album + "&%&" + str(self.time)
+        return self.path + " &%& " + str(self.index) + ' &%& ' + self.title + " &%& " + self.artist + " &%& " + self.album + " &%& " + str(self.time)
 
     
     def __repr__(self):
