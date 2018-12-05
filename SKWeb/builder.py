@@ -76,10 +76,10 @@ if __name__ == "__main__":
                     # sys.stdout.buffer.write((name+'\n').encode())
                     path2 = os.path.join(root, name)
                     tag = MP3(path2, ID3=EasyID3)
-                    if 'name' in tag:
-                        name = tag['name'][0]
+                    if 'title' in tag:
+                        title = tag['title'][0]
                     else:
-                        name = name
+                        title = name
                     if 'artist' in tag:
                         artist = tag['artist'][0]
                     else:
@@ -94,7 +94,7 @@ if __name__ == "__main__":
                     else:
                         url = root.replace(path, '.') + '\\' + name
 
-                    skFile = SKFile(url, name, artist, album)
+                    skFile = SKFile(url, title, artist, album)
                     retArr2.append(skFile)
                     i += 1
                 # Special duration error on TinyTag Most likely Throws 2 errors

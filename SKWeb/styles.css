@@ -208,11 +208,21 @@ div.song{
     display:inline-block;
 }
 
+#ProgressBuff{
+    height: 75%;
+    width: 1px;
+    float: left;
+    background-color: black;
+    margin: auto;
+    position: relative;
+    top: -10px;
+}
+
 #ProgressMarker{
     height: 300%;
     width: 1%;
     position:relative;
-    top: -15px;
+    top: -20px;
     background-color: red;
 }
 
