@@ -63,7 +63,7 @@ public class SKMedia {
                 "    songDex integer PRIMARY KEY,\n" +
                 "    title text,\n" +
                 "    artist text,\n" +
-                "    album text\n" +
+                "    album text,\n" +
                 "    duration integer\n" +
                 "    );";
 

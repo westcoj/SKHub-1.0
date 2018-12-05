@@ -118,7 +118,7 @@ public class HomeFragment extends Fragment {
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+    public View onCreateView(LayoutInflater inflater, final ViewGroup container,
                              Bundle savedInstanceState) {
         final View rootView = inflater.inflate(R.layout.fragment_home, container, false);
         final MainActivity main = (MainActivity)getActivity();
@@ -220,10 +220,14 @@ public class HomeFragment extends Fragment {
                             ex.printStackTrace();
                         }
 
+                        main.setSkFile(skFile);
                         main.setSongURL(songURL);
 //                        System.out.println(main.getSong());
+//                        main.getViewPager().setCurrentItem(1);
                         final FragmentTransaction ft = getFragmentManager().beginTransaction();
                         ft.replace(R.id.mainFrame, new PlayerFragment());
+//                        ft.show(main.getPlayerFragment());
+//                        ft.hide(main.getHomeFragment());
                         ft.commit();
                     }
                 });
@@ -249,6 +253,7 @@ public class HomeFragment extends Fragment {
                         for(SKFile x: cache){
                             System.out.println(x.getSongTitle());
                         }
+                        main.setSkFile(skFile);
                         main.setSongURL(songURL);
                         System.out.println(main.getSong());
                         final FragmentTransaction ft = getFragmentManager().beginTransaction();
@@ -292,7 +297,8 @@ public class HomeFragment extends Fragment {
                                     ex.printStackTrace();
                                 }
 
-                                main.setSong(songFile);
+                                main.setSkFile(skFile);
+                                main.setSongURL(songURL);
                                 //main.setSong(sFile);
                                 System.out.println(main.getSong());
                                 final FragmentTransaction ft = getFragmentManager().beginTransaction();
@@ -319,11 +325,11 @@ public class HomeFragment extends Fragment {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         playlistName = input.getText().toString();
-                        try {
-                            new HomeFragment.UpdateTask().execute().get();
-                        }catch(InterruptedException | ExecutionException ex){
-                            ex.printStackTrace();
-                        }
+//                        try {
+//                            new HomeFragment.UpdateTask().execute().get();
+//                        }catch(InterruptedException | ExecutionException ex){
+//                            ex.printStackTrace();
+//                        }
                         skm.dbNewList(playlistName);
                     }
                 });
@@ -415,25 +421,15 @@ public class HomeFragment extends Fragment {
             SKFile skf = new SKFile(skData[0], Integer.parseInt(skData[1]), skData[2], skData[3], skData[4], Float.parseFloat(skData[5]));
             System.out.println(skData[5]);
             skFile.add(skf);
+            skLibrary.add(skf);
         }
         return 0;
-
-//        try{
-//            URL url =  new URL(main.getURL() + path);
-//            HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-//            conn.setRequestMethod("HEAD");
-//            int fileSize = conn.getContentLength();
-//        }catch(IOException e){
-//            e.printStackTrace();
-//        }
-//        int currentFileSize = outputFile.length();
-
     }
 
     public int checkFile(int index){
         try {
             MainActivity main = (MainActivity) getActivity();
-            String url = main.getURL() + "/" + skFile.get(index).getFilePath();
+            String url = main.getURL() + "/" + skLibrary.get(index).getFilePath();
             URL fixedURL = new URL(url.replaceAll("\\s", "%20"));
             System.out.println(url);
             HttpURLConnection conn = (HttpURLConnection) fixedURL.openConnection();
@@ -640,25 +636,12 @@ public class HomeFragment extends Fragment {
     private class UpdateTask extends AsyncTask<Void, Void, Void> {
 
         @Override
-        protected Void doInBackground(Void... params){
+        protected Void doInBackground(Void... params) {
             byte[] fileData;
             skSetIpHost(hostName, portNum);
-            //skOpen();
-            //System.out.println(dirPath);
-//            try{
-                //userComm("update");
-                buildLibrary("directory.txt");
-//            }catch(IOException e){
-//                e.printStackTrace();
-//            }
-//                userComm("update");
-                //skUIFile(0);
+            buildLibrary("directory.txt");
             return null;
         }
-
-//        protected Void onPostExecute(long result){
-//            return null;
-//        }
     }
 
     private class PlaySong extends AsyncTask<Void, Void, Void>{
@@ -666,11 +649,6 @@ public class HomeFragment extends Fragment {
         @Override
         protected Void doInBackground(Void... params){
             System.out.println(checkFile(index));
-//            try{
-//                skUIFile(index);
-//            }catch(IOException e){
-//                e.printStackTrace();
-//            }
             return null;
         }
     }

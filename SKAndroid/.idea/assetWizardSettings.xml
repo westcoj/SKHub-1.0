@@ -19,8 +19,8 @@
                         <option name="values">
                           <map>
                             <entry key="assetSourceType" value="FILE" />
-                            <entry key="outputName" value="ic_baseline_pause_24px" />
-                            <entry key="sourceFile" value="C:\Users\sd56f\Documents\CIS 457\icons\baseline-pause-24px.svg" />
+                            <entry key="outputName" value="ic_baseline_skip_previous_24px" />
+                            <entry key="sourceFile" value="C:\Users\sd56f\AndroidStudioProjects\SKAndroid\app\src\main\res\drawable\baseline-skip_previous-24px.svg" />
                           </map>
                         </option>
                       </PersistentState>

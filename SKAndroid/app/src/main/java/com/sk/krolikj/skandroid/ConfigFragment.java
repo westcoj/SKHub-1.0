@@ -37,11 +37,6 @@ public class ConfigFragment extends Fragment {
     private static final String host = "hostname";
     private static final String ipAd = "portnum";
 
-    private String mParam1;
-    private String mParam2;
-
-    private OnFragmentInteractionListener mListener;
-
     public ConfigFragment() {
         // Required empty public constructor
     }
@@ -53,10 +48,6 @@ public class ConfigFragment extends Fragment {
         args.putString(ipAd, param2);
         fragment.setArguments(args);
         return fragment;
-    }
-
-    public Boolean getConnectSuccess() {
-        return connectSuccess;
     }
 
     public void skSetIpHost(String host, int port) {
@@ -82,16 +73,6 @@ public class ConfigFragment extends Fragment {
             e.printStackTrace();
             return 1;
         }
-//        try{
-//            sock = new Socket(ip, portNum);
-//            dIS = new DataInputStream(sock.getInputStream());
-//            dOS = new DataOutputStream(sock.getOutputStream());
-//            Log.d("OPEN", "Connection Established");
-//            return 0;
-//        }catch(IOException e){
-//            Log.e("!OPEN", e.toString());
-//            return 1;
-//        }
     }
 
     @Override
@@ -122,20 +103,19 @@ public class ConfigFragment extends Fragment {
                 MainActivity main = (MainActivity)getActivity();
                 String ipNum = ipInput.getEditText().getText().toString();
                 String port = portInput.getEditText().getText().toString();
-                ip = ipNum;
-                portNum = Integer.parseInt(port);
-                try {
-                    new ConfigFragment.ConnectTask().execute().get();
-                    main.skSetIpHost(ip, portNum);
-                    main.setURL(url);
-                }catch(ExecutionException | InterruptedException ex){
-                    ex.printStackTrace();
-                }
-                //Bundle args = new Bundle();
-                //args.putString("network", ip + "/" + portNum);
-                //homeFrag.setArguments(args);
-                //getFragmentManager().beginTransaction().add(R.id.mainFrame, homeFrag).commit();
+                if(port.equals("") || ipNum.equals("")) {
+                }else {
+                    ip = ipNum;
+                    portNum = Integer.parseInt(port);
 
+                    try {
+                        new ConfigFragment.ConnectTask().execute().get();
+                        main.skSetIpHost(ip, portNum);
+                        main.setURL(url);
+                    } catch (ExecutionException | InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
             }
         });
 
@@ -168,31 +148,18 @@ public class ConfigFragment extends Fragment {
         }
     }
 
-    public void onButtonPressed(Uri uri) {
-        if (mListener != null) {
-            mListener.onFragmentInteraction(uri);
-        }
-    }
-
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-//        if (context instanceof OnFragmentInteractionListener) {
-//            mListener = (OnFragmentInteractionListener) context;
-//        } else {
-//            throw new RuntimeException(context.toString()
-//                    + " must implement OnFragmentInteractionListener");
-//        }
     }
 
     @Override
     public void onDetach() {
         super.onDetach();
-        mListener = null;
     }
 
-    public interface OnFragmentInteractionListener {
-        // TODO: Update argument type and name
-        void onFragmentInteraction(Uri uri);
-    }
+//    public interface OnFragmentInteractionListener {
+//        // TODO: Update argument type and name
+//        void onFragmentInteraction(Uri uri);
+//    }
 }

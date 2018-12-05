@@ -12,30 +12,31 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class PlayerFragment extends Fragment {
 
     private Button playButton;
+    private Button nextButton;
+    private Button lastButton;
     private SeekBar positionBar;
     private SeekBar volumeBar;
     private TextView timePassedLabel;
     private TextView timeLeftLabel;
     private TextView songName;
-    private MediaPlayer mp;
+    private static MediaPlayer mp;
+    private ArrayList<SKFile> songList;
     private SKFile skf;
-    private int songLength;
-    private ViewGroup cont;
+    private float songLength;
     final static String ARG_POSITION = "position";
     int mCurrentPosition = -1;
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
-
-    private String mParam1;
-    private String mParam2;
 
     private OnFragmentInteractionListener mListener;
 
@@ -55,11 +56,6 @@ public class PlayerFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
-        }
     }
 
     @Override
@@ -72,34 +68,41 @@ public class PlayerFragment extends Fragment {
 //            container.removeAllViews();
 //        }
 
+        final MainActivity main = (MainActivity)getActivity();
+        ImageView logo = main.findViewById(R.id.Logo);
+        ImageView sounderkin = main.findViewById(R.id.SounderKin);
+        logo.setVisibility(View.GONE);
+        sounderkin.setVisibility(View.GONE);
+
         View rootView = inflater.inflate(R.layout.fragment_player, container, false);
 
         playButton = rootView.findViewById(R.id.playButton);
+        nextButton = rootView.findViewById(R.id.nextButton);
+        lastButton = rootView.findViewById(R.id.lastButton);
         timePassedLabel = rootView.findViewById(R.id.timePassedLabel);
         timeLeftLabel = rootView.findViewById(R.id.timeLeftLabel);
         songName = rootView.findViewById(R.id.songName);
-        MainActivity main = (MainActivity)getActivity();
-        //if(main.getSongSet()) {
-            skf = main.getSongData();
+        skf = main.getSongData();
+//        songName.setText(skf.getSongTitle());
+//        songLength = skf.getSongTime();
+        System.out.println(songLength);
+        songList = main.getSkFile();
+        try {
             songName.setText(skf.getSongTitle());
-            try {
-
-                //mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
-                //mp = MediaPlayer.create(getActivity().getBaseContext(), Uri.fromFile(main.getSong()));
-                mp = new MediaPlayer();
-                mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
-                System.out.println(main.getSong());
-                //mp.seekTo(0);
-                mp.setVolume(0.5f, 0.5f);
-                mp.setDataSource(main.getSongURL());
-                mp.prepare();
-                mp.start();
-                playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
-                //songLength = mp.getDuration();
-            }catch (IOException e){
-                e.printStackTrace();
-            }
-        //}
+            songLength = skf.getSongTime();
+            //mp = MediaPlayer.create(getActivity().getBaseContext(), R.raw.song);
+            //mp = MediaPlayer.create(getActivity().getBaseContext(), Uri.fromFile(main.getSong()));
+            mp = new MediaPlayer();
+            mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            //mp.seekTo(0);
+            mp.setVolume(0.5f, 0.5f);
+            mp.setDataSource(main.getSongURL());
+            mp.prepare();
+            //mp.start();
+            //playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
+        } catch (IOException | NullPointerException e) {
+            System.out.println("No song chosen my dude");
+        }
 
         playButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -114,8 +117,64 @@ public class PlayerFragment extends Fragment {
             }
         });
 
+        nextButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v){
+                int index;
+                if(mp.isPlaying())
+                    mp.stop();
+                index = songList.indexOf(skf);
+                if(index+1 == songList.size())
+                    index = -1;
+                skf = songList.get(index+1);
+                String newURL = main.getURL() + "/" + skf.getFilePath();
+                songName.setText(skf.getSongTitle());
+                try {
+                    String fixedUrl = newURL.replaceAll("\\s", "%20");
+                    mp = new MediaPlayer();
+                    mp.setDataSource(fixedUrl);
+                    mp.prepare();
+                    mp.start();
+                    playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
+                }catch(IOException e){
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        lastButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int index;
+                if(mp.getCurrentPosition() < 5000) {
+                    if (mp.isPlaying())
+                        mp.stop();
+                    index = songList.indexOf(skf);
+                    if (index - 1 < 0)
+                        index = songList.size();
+                    skf = songList.get(index - 1);
+                    String newURL = main.getURL() + "/" + skf.getFilePath();
+                    songName.setText(skf.getSongTitle());
+                    try {
+                        String fixedUrl = newURL.replaceAll("\\s", "%20");
+                        mp = new MediaPlayer();
+                        mp.setDataSource(fixedUrl);
+                        mp.prepare();
+                        mp.start();
+                        playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }else{
+                    mp.pause();
+                    mp.seekTo(0);
+                    mp.start();
+                }
+            }
+        });
+
         positionBar = rootView.findViewById(R.id.songPositionBar);
-        positionBar.setMax(songLength);
+        positionBar.setMax((int)songLength);
         positionBar.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
                     @Override
@@ -185,26 +244,21 @@ public class PlayerFragment extends Fragment {
             positionBar.setProgress(curPosition);
             String passedTime = timeLabel(curPosition);
             timePassedLabel.setText(passedTime);
-            String timeLeft = timeLabel(songLength - curPosition);
+            String timeLeft = timeLabel((int)songLength - curPosition);
             timeLeftLabel.setText("-" + timeLeft);
         }
     };
 
-    public void onButtonPressed(Uri uri) {
-        if (mListener != null) {
-            mListener.onFragmentInteraction(uri);
-        }
-    }
-
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-//        if (context instanceof OnFragmentInteractionListener) {
-//            mListener = (OnFragmentInteractionListener) context;
-//        } else {
-//            throw new RuntimeException(context.toString()
-//                    + " must implement OnFragmentInteractionListener");
-//        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if(mp.isPlaying())
+            mp.stop();
     }
 
     @Override
