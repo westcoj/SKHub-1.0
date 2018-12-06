@@ -58,7 +58,6 @@ class SKGUI(wx.Panel):
         self.isPlaying = False
         self.uri = 'http://' + self.__host + ':' + str(self.__port) + '/'
         self.playReady = False;
-        print(self.skGetTime(123.58879818594104))
 
     def skGetTime(self, time):
         m = floor(time/60)
@@ -655,7 +654,7 @@ class SKGUI(wx.Panel):
             return
         request = self.uri + musicPath
         # print("Request: " + request)
-        if not self.mediaPlayer.Load(musicPath):
+        if not self.mediaPlayer.Load(request):
             wx.MessageBox("Unable to load %s: Unsupported format?" % musicPath,
                           "ERROR",
                           wx.ICON_ERROR | wx.OK)
