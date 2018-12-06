@@ -1,7 +1,9 @@
 '''
-Created on Sep 21, 2018
+Module handles all database and playlist related functions. Expects the database to be in specific place in
+install folder.
 
-@author: Cody
+@Date: 9/21/18
+@author: Cody West
 '''
 
 import os
@@ -13,15 +15,21 @@ import re
 class SKMedia(object):
     '''
     This class is used to handle play list operations for the client. Using database tables, it
-    keeps track of the default list and every list. 
-    
-    This needs more cleaning up, since text file tracking is no longer in use.
+    keeps track of the default list and every other list.
     '''
 
 
     def __init__(self):
         '''
         Constructor to set up media handler
+
+        regex: Used to clean input in special cases
+        list: Unused
+        cacheList: Also Unused (legacy)
+        listIndex: Unused
+        dirName: Current location for databasefile finding
+        plPath: Path for playlist, where db file is located
+        dbPath: Direct path to db (for connecting)
         '''
         self.__regex = '[^0-9a-zA-Z ]+'
         self.__list = [] 
@@ -59,8 +67,6 @@ class SKMedia(object):
     def skdbGetList(self, name):
         '''
         Method for obtaining a table from the database and returning its contents
-        
-        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         retList = []
         try:
@@ -155,8 +161,6 @@ class SKMedia(object):
     def skdbRemoveList(self, name):
         '''
         Removes a table from the database
-        
-        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -177,8 +181,6 @@ class SKMedia(object):
         Method to add or remove a song from a table.
         op = add (1) or delete (anything else)
         name = play list name. Since they are chosen via selection, shouldn't run into not finding that list
-        
-        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -210,7 +212,6 @@ class SKMedia(object):
     def skdbUpdateListMany(self, op, name, items):
         '''
         Method to update a table with a list of entries. Either adding or removing. 
-        UPDATE: Change name to be a variable, do not allow for SQL Injection
         '''
         try:
             con = sqlite3.connect(self.__dbPath)
@@ -292,6 +293,9 @@ class SKMedia(object):
         return 1
 
     def skdbSearchList(self, option, value, list):
+        '''
+        Search specific list based on input variable, return all SKFiles matching that input
+        '''
         print(list)
         print(value)
         if (option == 1):
@@ -320,6 +324,9 @@ class SKMedia(object):
             return 1
 
     def skdbGetUniques(self, option):
+        '''
+        Gets all unique entries based off artist or album and returns them.
+        '''
         try:
             con = sqlite3.connect(self.__dbPath)
             cur = con.cursor()

@@ -1,7 +1,8 @@
 '''
-Created on Sep 25, 2018
+Module that handles creation of SKFiles that represent songs, having all relevant info from then.
 
-@author: Cody
+@date: 9/25/18
+@author: Cody West
 '''
 
 class SKFile(object):

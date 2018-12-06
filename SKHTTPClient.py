@@ -1,7 +1,9 @@
 '''
-Created on Sep 6, 2018
+This modeule is the back end of the SKHTTP application, and handles all communications with the server. It
+also keeps track of the media files listed in the server, passing proper information to the GUI.
 
-@author: Cody
+@date:  11/7/18
+@author: Cody West
 '''
 import struct
 import requests
@@ -14,23 +16,17 @@ from SKFile import SKFile
 class SKHTTPClient(object):
     '''
     This class should handle all communications for the client application.
-    The client GUI will call methods from here to properly run. The main method here will
-    run a command line based application that should have full functionality
+    The client GUI will call methods from here to properly run.
     '''
 
     def __init__(self, port, ip, custom, timeout):
         '''
-        SKCLient will be built with several methods all revolving the socket initialized within
-        the constructor. (Unless a higher level communication method is chosen, further
-        research is needed).
-
         port: network port to operate on
         ip: IP address of the server to contact
         path: location where sound files are held
         dir: String list of files on server
         dirPath: Path of client song directory
         skFiles: List of songs in skFile format
-        admPass: Password for admin connection
         '''
         self.__hostname = ip
         self.__port = port
@@ -48,11 +44,14 @@ class SKHTTPClient(object):
         self.__timeout = timeout
 
     def skGetFileDir(self):
+        '''
+        Returns list of SKFiles which enable for searching for specific files by GUI.
+        '''
         return self.__skFiles
 
     def skSetIPHOST(self, host, port):
         '''
-        Method for changing the connection settings of the client.
+        Method for changing the connection settings of the client. Error checking should be done before calling
         '''
         self.__hostname = host
         self.__port = port
@@ -97,7 +96,7 @@ class SKHTTPClient(object):
         try:
             r = requests.get(self.__url + path, timeout = self.__timeout)
             if(r.headers.get('content-type')=='text/html'):
-                return 3
+                return 3 #No File
         except Exception as e:
             # print(e)
             return 2 #Can't contact server
@@ -110,13 +109,14 @@ class SKHTTPClient(object):
                 #Issue creating server directory
                 return 1
         else:
-            return 3 #Can't find file
+            return 3 #Can't create file
+        '''Now reading the info from the file'''
         try:
             with open("serverdirectory.txt", 'r', encoding='utf-8') as text_file:
                 self.__dir = text_file.readlines()
         except Exception as e:
             # print(e)
-            return 1
+            return 1 #Error opening file
         try:
             self.__dir.pop()
             self.__skFiles = []
@@ -124,17 +124,16 @@ class SKHTTPClient(object):
                 skFData = x.split('&%&')
                 skf = SKFile(skFData[0], skFData[1], skFData[2], skFData[3], skFData[4], skFData[5])
                 self.__skFiles.append(skf)
-            return 0
+            return 0 #SUCCESS
         except IndexError:
-            return 3
+            return 3 #
 
 
     def skBatchFile(self, index, folder):
         '''
-        Windows doesn't like : in titles, great. Maybe just disable batch files altogether?
-        :param index:
-        :param folder:
-        :return:
+        Method for downloading mp3 files from server
+        :param index: index of file to download
+        :param folder: folder to place file in
         '''
         folder = ''.join(e for e in folder if e.isalnum())
         path = os.path.join('batches',folder.strip())
@@ -151,7 +150,7 @@ class SKHTTPClient(object):
                 with open((os.path.join(path2, fPath[1])), "wb") as musicFile:
                     musicFile.write(r.content)
                     musicFile.flush()
-                return 0
+                return 0 #Success
                 # if (file.title.endswith('.mp3')):
                 #     with open((os.path.join(path2, file.title)), "wb") as musicFile:
                 #         musicFile.write(r.content)
@@ -168,10 +167,13 @@ class SKHTTPClient(object):
                 # return 0
             except Exception as e:
                 print(e)
-                return 1
+                return 1 #Error getting file or downloading it
 
 
     def skTestSend(self):
+        '''
+        Method for testing purposes only.
+        '''
         r = requests.get(self.__url + 'directory.txt', auth=HTTPBasicAuth('James','followme') ,timeout=self.__timeout)
         # print(r.text)
 

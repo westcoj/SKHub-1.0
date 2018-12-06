@@ -1,7 +1,10 @@
 '''
-Created on Sep 7, 2018
+This modeule is used to run the HTTP server that pairs with the SounderKin Application.
+It handles specific requests in order to send out the proper files. This server does not act
+as a fully functional HTTP server. It should not be used in production as it is not a secure function.
 
-@author: Cody
+@date: 11/7/18
+@author: Cody West
 '''
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
@@ -14,7 +17,6 @@ import configparser
 import threading
 from urllib.parse import unquote
 
-root = 'hi'
 class SKHTTPServer(object):
     def __init__(self):
         '''
@@ -49,13 +51,14 @@ class SKHTTPServer(object):
         self.__exitVal = 0
 
     def skReset(self):
+        '''
+        Returns status of if server should reset, (0 for NO)
+        '''
         return self.__reset
 
     def skSetup(self):
         '''
         Method for reading the ini file provided to the server
-
-        UPDATE: PATH CHECKING
         '''
         # Ensure path is correct
         os.chdir(self.__homeDir)
@@ -113,6 +116,9 @@ class SKHTTPServer(object):
                 print('Error making ini file')
 
     def skUpdateINI(self):
+        '''
+        This method updates the ini file upon closing the server
+        '''
         # print(self.__ipList)
         os.chdir(self.__homeDir)
         try:
@@ -140,13 +146,16 @@ class SKHTTPServer(object):
             print('Error making ini file')
 
     def skRunApp(self):
+        '''
+        This method starts up the server and the console for user interaction.
+        '''
         self.__serverThread = threading.Thread(target=self.skRunServer, args=())
         self.__serverThread.start()
         self.skRunConsole()
 
     def skRunServer(self):
         '''
-        This method starts up the SKHTTPServerHandler in a new thread
+        This method starts up the SKHTTPServerHandler.
         '''
         print('Now running HTTP server\n')
         self.__SS.serve_forever()
@@ -246,7 +255,7 @@ class SKHTTPServer(object):
 
 
     def skBuildDirFile(self):
-        '''This builds a file based off skFiles for sending to client'''
+        '''This builds a directory file based off skFiles for sending to client'''
         try:
             with open("directory.txt", "wb") as text_file:
                 for x in self.__skFiles:
@@ -259,6 +268,9 @@ class SKHTTPServer(object):
 
 
 class SKHTTPServerHandler(BaseHTTPRequestHandler):
+    '''
+    Custom HTTP handler meant to respond to specific requests from SK application.
+    '''
     def __init__(self, root, pubStats, *args):
         self.__root = root
         try:
@@ -268,6 +280,9 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
 
 
     def do_HEAD(self):
+        '''
+        Confirms existence of server and of files within it.
+        '''
         print(self.path)
         self.path = unquote(self.path)
         self.path = self.path[1:]
@@ -336,10 +351,16 @@ class SKHTTPServerHandler(BaseHTTPRequestHandler):
             pass
 
     def do_POST(self):
-        '''Client is changing the server settings'''
+        '''
+        Client is changing the server settings
+        NOT IMPLEMENTED, LACKING SECURITY
+        '''
 
     def do_PUT(self):
-        '''Client has tagging enabled an has changed file tags'''
+        '''
+        Client has tagging enabled an has changed file tags
+        NOT IMPLEMENTED, LACKING SECURITY
+        '''
 
     #
     # def log_message(self, format, *args):
