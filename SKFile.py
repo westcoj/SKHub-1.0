@@ -1,7 +1,8 @@
 '''
-Created on Sep 25, 2018
+Module that handles creation of SKFiles that represent songs, having all relevant info from then.
 
-@author: Cody
+@date: 9/25/18
+@author: Cody West
 '''
 
 class SKFile(object):
@@ -43,7 +44,7 @@ class SKFile(object):
         This method prints the file information in one string.
         '''
 
-        return self.path + " &%& " + str(self.index) + ' &%& ' + self.title + " &%& " + self.artist + " &%& " + self.album + " &%& " + str(self.time)
+        return self.path + " &%& " + str(self.index) + ' &%& ' + self.title + " &%& " + self.artist + " &%& " + self.album + "&%&" + str(self.time)
 
     
     def __repr__(self):
