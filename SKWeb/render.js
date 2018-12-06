@@ -17,14 +17,14 @@ function defaultList() {
                 marker.style.left = (songPlayedPercentage * 3) + 'px';
                 this.handleText();
 
-                let songBufferedPercentage = Amplitude.getBuffered();
-                bufferedBar.style.paddingRight = (songBufferedPercentage * 3) + 'px';
+                // let songBufferedPercentage = Amplitude.getBuffered();
+                // bufferedBar.style.paddingRight = (songBufferedPercentage * 3) + 'px';
             },
             'song_change': function(){
                 fileTitle.textContent=Amplitude.getActiveSongMetadata().name;
                 fileArtist.textContent=Amplitude.getActiveSongMetadata().artist;
                 this.handleText();
-                console.log('oh hj');
+                // console.log('oh hj');
             },
         },
         "songs": []
@@ -39,7 +39,7 @@ defaultList();
 Amplitude.setDefaultAlbumArt('./cover.png' );
 maxLen = Amplitude.getSongs().length;
 mainList = Amplitude.getSongs();
-console.log(mainList);
+// console.log(mainList);
 playbutton = document.getElementById("play-pause");
 playbutton.addEventListener("click", play);
 // document.getElementById("next").addEventListener("click", next);
@@ -83,7 +83,7 @@ function getUniques() {
 }
 
 getUniques();
-console.log(uniArtists);
+// console.log(uniArtists);
 
 
 
@@ -165,6 +165,17 @@ function updateInfo(){
     handleText();
 }
 
+let lastUpdate = 0;
+function updateSlider(time){
+    if(time - lastUpdate > 250){
+        lastUpdate = time;
+        let songBufferedPercentage = Amplitude.getBuffered();
+        bufferedBar.style.paddingRight = (songBufferedPercentage * 3) + 'px';
+    }
+    window.requestAnimationFrame(updateSlider);
+}
+window.requestAnimationFrame(updateSlider);
+
 function sethandlers(){
     window.addEventListener('keydown', event => {
         var key = event.keyCode;
@@ -204,9 +215,9 @@ function getDex(value){
 
 function songAdjust(event){
     var offset = playBar.getBoundingClientRect();
-    console.log(offset);
+    // console.log(offset);
     var x = event.pageX - offset.left;
-    console.log(x);
+    // console.log(x);
 
     Amplitude.setSongPlayedPercentage( ( parseFloat( x ) / parseFloat( playBar.offsetWidth) ) * 100 );
     songPlayedPercentage = Amplitude.getSongPlayedPercentage();
@@ -281,9 +292,6 @@ function loadList(){
                 'time_update': function () {
                     let songPlayedPercentage = Amplitude.getSongPlayedPercentage();
                     marker.style.left = (songPlayedPercentage * 3) + 'px';
-
-                    let songBufferedPercentage = Amplitude.getBuffered();
-                    bufferedBar.style.paddingRight = (songBufferedPercentage * 3) + 'px';
                 }
             }, 'songs': mainList,
         });
@@ -324,9 +332,6 @@ function onPlayList(option, value){
             'time_update': function () {
                 let songPlayedPercentage = Amplitude.getSongPlayedPercentage();
                 marker.style.left = (songPlayedPercentage * 3) + 'px';
-
-                let songBufferedPercentage = Amplitude.getBuffered();
-                bufferedBar.style.paddingRight = (songBufferedPercentage * 3) + 'px';
             }
         }, 'songs': newList,
     });
