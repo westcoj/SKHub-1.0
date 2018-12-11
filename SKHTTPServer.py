@@ -112,7 +112,7 @@ class SKHTTPServer(object):
                     config.write(iniFile)
 
             except Exception as e:
-                print(e)
+                # print(e)
                 print('Error making ini file')
 
     def skUpdateINI(self):
