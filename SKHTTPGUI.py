@@ -99,14 +99,13 @@ class SKGUI(wx.Panel):
                     '''Get IP'''
                     self.__host = self.skPopUpValue('Enter Server IP', '127.0.0.1')
                     try:
-                        ipaddress.ip_address(self.__host)
                         if self.__host == '127.0.0.1' or self.__host == 'localhost':
                             try:
                                 self.__host = gethostbyname(gethostname())
                             except Exception:
                                 pass
-                        else:
-                            break
+                        ipaddress.ip_address(self.__host)
+                        break;
                     except:
                         wx.MessageBox("Enter a valid IP address", "IP Address", wx.ICON_EXCLAMATION | wx.OK)
                 while True:
@@ -442,8 +441,10 @@ class SKGUI(wx.Panel):
                 self.__timeout = dlg.resulttime
                 self.__customServer = dlg.resultcustom
                 self.__dirLocation = dlg.resultdir
+                self.uri = 'http://' + self.__host + ':' + str(self.__port) + '/'
             else:
                 wx.MessageBox("Invalid Settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+                return
 
         else:
             dlg.Destroy()
@@ -463,37 +464,37 @@ class SKGUI(wx.Panel):
         wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
         self.skGetList(wx.Event)
 
-    def skSetConnection(self, event):
-        '''
-        When user clicks connect from menu, a window that allows a user to change settings at once appears.
-        On okay, would try a connection with the new options.
-        '''
-        dlg = NewConnection(parent=self)
-        dlg.ShowModal()
-        if dlg.resultip:
-            if dlg.resultip != 'bad':
-                self.__host = dlg.resultip
-                self.__port = dlg.resultport
-            else:
-                wx.MessageBox("Invalid Settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
-
-        else:
-            dlg.Destroy()
-            return
-        dlg.Destroy()
-
-        self.skc = SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout);
-        self.connected = self.skc.skTestConnection()
-        if (self.connected == 1):
-            wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
-            self.mediaList = []
-            self.mediaDisplay.DeleteAllItems()
-            self.playIndex = 0;
-            self.mediaPlayer.Stop()
-            self.playReady = False
-            return
-        wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
-        self.skGetList(wx.Event)
+    # def skSetConnection(self, event):
+    #     '''
+    #     When user clicks connect from menu, a window that allows a user to change settings at once appears.
+    #     On okay, would try a connection with the new options.
+    #     '''
+    #     dlg = NewConnection(parent=self)
+    #     dlg.ShowModal()
+    #     if dlg.resultip:
+    #         if dlg.resultip != 'bad':
+    #             self.__host = dlg.resultip
+    #             self.__port = dlg.resultport
+    #         else:
+    #             wx.MessageBox("Invalid Settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+    #
+    #     else:
+    #         dlg.Destroy()
+    #         return
+    #     dlg.Destroy()
+    #
+    #     self.skc = SKHTTPClient(self.__port, self.__host, self.__customServer, self.__timeout);
+    #     self.connected = self.skc.skTestConnection()
+    #     if (self.connected == 1):
+    #         wx.MessageBox("Unable to connect to server, check settings", "ERROR", wx.ICON_EXCLAMATION | wx.OK)
+    #         self.mediaList = []
+    #         self.mediaDisplay.DeleteAllItems()
+    #         self.playIndex = 0;
+    #         self.mediaPlayer.Stop()
+    #         self.playReady = False
+    #         return
+    #     wx.MessageBox("Server Connection Verified", "SUCCESS", wx.ICON_EXCLAMATION | wx.OK)
+    #     self.skGetList(wx.Event)
 
     def skBatchDownload(self, event):
         batchFrame = SKBatchFrame(self.mediaManager)

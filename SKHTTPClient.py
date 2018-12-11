@@ -92,7 +92,9 @@ class SKHTTPClient(object):
         '''
         Method that retrieves directory file from server and builds the skFiles array,
         First builds the file from bytes, then reads it in lines by text
+
         '''
+        # print(self.__url + path)
         try:
             r = requests.get(self.__url + path, timeout = self.__timeout)
             if(r.headers.get('content-type')=='text/html'):
