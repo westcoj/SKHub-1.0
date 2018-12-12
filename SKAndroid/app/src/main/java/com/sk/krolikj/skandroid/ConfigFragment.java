@@ -1,24 +1,25 @@
 package com.sk.krolikj.skandroid;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.TextInputLayout;
 import android.support.v4.app.Fragment;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 
 import java.lang.*;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.Socket;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
 
@@ -83,9 +84,6 @@ public class ConfigFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-//        if (container != null) {
-//            container.removeAllViews();
-//        }
         final View rootView = inflater.inflate(R.layout.fragment_config, container, false);
 
         MainActivity main = (MainActivity)getActivity();
@@ -112,6 +110,28 @@ public class ConfigFragment extends Fragment {
                         new ConfigFragment.ConnectTask().execute().get();
                         main.skSetIpHost(ip, portNum);
                         main.setURL(url);
+                        if(connectSuccess) {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                            builder.setTitle("Connection Success");
+                            //builder.setView();
+
+                            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                }
+                            });
+                            builder.show();
+                        }else{
+                            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                            builder.setTitle("Failed to Connect to Server");
+
+                            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                }
+                            });
+                            builder.show();
+                        }
                     } catch (ExecutionException | InterruptedException ex) {
                         ex.printStackTrace();
                     }

@@ -16,8 +16,6 @@ public class SKMedia {
     private Context actContext;
 
     public SKMedia(Context context) {
-       // myDbHelper = new MyDatabaseHelper(context);
-        //db = myDbHelper.getWritableDatabase();
         actContext = context;
         dbPath = actContext.getDatabasePath("playlists.db").toString();
     }

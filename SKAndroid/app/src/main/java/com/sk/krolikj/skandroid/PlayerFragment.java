@@ -64,9 +64,6 @@ public class PlayerFragment extends Fragment {
         if (savedInstanceState != null) {
             mCurrentPosition = savedInstanceState.getInt(ARG_POSITION);
         }
-//        if (container != null) {
-//            container.removeAllViews();
-//        }
 
         final MainActivity main = (MainActivity)getActivity();
         ImageView logo = main.findViewById(R.id.Logo);
@@ -104,29 +101,14 @@ public class PlayerFragment extends Fragment {
             System.out.println("No song chosen my dude");
         }
 
-        playButton.setOnClickListener(new View.OnClickListener() {
+        mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
-            public void onClick(View v) {
-                if (!mp.isPlaying()) {
-                    mp.start();
-                    playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
-                } else {
-                    mp.pause();
-                    playButton.setBackgroundResource(R.drawable.ic_baseline_play_arrow_24px);
-                }
-            }
-        });
-
-        nextButton.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v){
+            public void onCompletion(MediaPlayer mp) {
                 int index;
-                if(mp.isPlaying())
-                    mp.stop();
                 index = songList.indexOf(skf);
-                if(index+1 == songList.size())
+                if (index + 1 == songList.size())
                     index = -1;
-                skf = songList.get(index+1);
+                skf = songList.get(index + 1);
                 String newURL = main.getURL() + "/" + skf.getFilePath();
                 songName.setText(skf.getSongTitle());
                 try {
@@ -136,23 +118,38 @@ public class PlayerFragment extends Fragment {
                     mp.prepare();
                     mp.start();
                     playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
-                }catch(IOException e){
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         });
 
-        lastButton.setOnClickListener(new View.OnClickListener() {
+        playButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(mp != null){
+                    if (!mp.isPlaying()) {
+                        mp.start();
+                        playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
+                    } else {
+                        mp.pause();
+                        playButton.setBackgroundResource(R.drawable.ic_baseline_play_arrow_24px);
+                    }
+                }
+            }
+        });
+
+        nextButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
                 int index;
-                if(mp.getCurrentPosition() < 5000) {
+                if (mp != null) {
                     if (mp.isPlaying())
                         mp.stop();
                     index = songList.indexOf(skf);
-                    if (index - 1 < 0)
-                        index = songList.size();
-                    skf = songList.get(index - 1);
+                    if (index + 1 == songList.size())
+                        index = -1;
+                    skf = songList.get(index + 1);
                     String newURL = main.getURL() + "/" + skf.getFilePath();
                     songName.setText(skf.getSongTitle());
                     try {
@@ -165,10 +162,46 @@ public class PlayerFragment extends Fragment {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                }else{
-                    mp.pause();
-                    mp.seekTo(0);
-                    mp.start();
+                }
+            }
+        });
+
+        lastButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int index;
+                if (mp != null) {
+//                    if (mp.getCurrentPosition() < 5000) {
+                        if (mp.isPlaying())
+                            mp.stop();
+                        index = songList.indexOf(skf);
+                        if (index - 1 < 0)
+                            index = songList.size();
+                        skf = songList.get(index - 1);
+                        String newURL = main.getURL() + "/" + skf.getFilePath();
+                        songName.setText(skf.getSongTitle());
+                        try {
+                            String fixedUrl = newURL.replaceAll("\\s", "%20");
+                            mp = new MediaPlayer();
+                            mp.setDataSource(fixedUrl);
+                            mp.prepare();
+                            mp.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                @Override
+                                public void onPrepared(MediaPlayer mp) {
+                                    mp.start();
+                                }
+                            });
+//                            mp.prepare();
+//                            mp.start();
+                            playButton.setBackgroundResource(R.drawable.ic_baseline_pause_24px);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+//                    } else {
+//                        mp.pause();
+//                        mp.seekTo(0);
+//                        mp.start();
+//                    }
                 }
             }
         });
@@ -180,9 +213,10 @@ public class PlayerFragment extends Fragment {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                         if (fromUser) {
-                            mp.seekTo(progress);
-                            positionBar.setProgress(progress);
-
+                            if(mp != null) {
+                                mp.seekTo(progress);
+                                positionBar.setProgress(progress);
+                            }
                         }
                     }
 
@@ -204,7 +238,8 @@ public class PlayerFragment extends Fragment {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                         float volumeLvl = progress / 100f;
-                        mp.setVolume(volumeLvl, volumeLvl);
+                        if(mp != null)
+                            mp.setVolume(volumeLvl, volumeLvl);
                     }
 
                     @Override
@@ -237,6 +272,10 @@ public class PlayerFragment extends Fragment {
         return rootView;
     }
 
+    public void onPrepared(MediaPlayer player) {
+        player.start();
+    }
+
     private Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -245,7 +284,7 @@ public class PlayerFragment extends Fragment {
             String passedTime = timeLabel(curPosition);
             timePassedLabel.setText(passedTime);
             String timeLeft = timeLabel((int)songLength - curPosition);
-            timeLeftLabel.setText("-" + timeLeft);
+            timeLeftLabel.setText("--:--");//"-" + timeLeft);
         }
     };
 
@@ -257,8 +296,10 @@ public class PlayerFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        if(mp.isPlaying())
-            mp.stop();
+        if(mp != null) {
+            if (mp.isPlaying())
+                mp.stop();
+        }
     }
 
     @Override
